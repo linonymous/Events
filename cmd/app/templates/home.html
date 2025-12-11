@@ -76,6 +76,17 @@
 				<button onclick="goToList()">Go</button>
 			</div>
 
+			{{if .Lists}}
+			<div style="margin-top: 2rem;">
+				<h3>Your Lists</h3>
+				<ul style="list-style-type: none; padding: 0;">
+					{{range .Lists}}
+					<li style="margin: 5px 0;"><a href="/events/lists/{{.}}">{{.}}</a></li>
+					{{end}}
+				</ul>
+			</div>
+			{{end}}
+
 			<a href="/events/logout" class="logout-link">Logout</a>
 		</div>
 	</body>

@@ -111,3 +111,21 @@ func (s *PostgresStorage) GetEventByID(eventID int, userID int) (*models.Event, 
 	}
 	return &e, nil
 }
+
+func (s *PostgresStorage) GetLists(userID int) ([]string, error) {
+	rows, err := s.db.Query("SELECT DISTINCT list_name FROM events WHERE user_id = $1 ORDER BY list_name", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var lists []string
+	for rows.Next() {
+		var listName string
+		if err := rows.Scan(&listName); err != nil {
+			return nil, err
+		}
+		lists = append(lists, listName)
+	}
+	return lists, nil
+}

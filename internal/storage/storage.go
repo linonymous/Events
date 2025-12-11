@@ -11,4 +11,5 @@ type Storage interface {
 	DeleteEvent(userID int, eventID int) error
 	GetEvents(userID int, listName string) ([]models.Event, error)
 	GetEventByID(eventID int, userID int) (*models.Event, error)
+	GetLists(userID int) ([]string, error)
 }
