@@ -3,7 +3,7 @@
 
     <head>
         <meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Event List</title>
         <script src="https://unpkg.com/htmx.org@1.5.0"></script>
         <style>
@@ -70,7 +70,7 @@
                 background-color: #1c86ee;
             }
 
-			.delete-button {
+            .delete-button {
                 background-color: #ff351e;
                 color: white;
                 border: none;
@@ -102,7 +102,7 @@
                     <th>Title</th>
                     <th>Date</th>
                     <th>Days Since</th>
-					<th>Years Since</th>
+                    <th>Years Since</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -112,12 +112,13 @@
                     <td>{{.Title}}</td>
                     <td>{{.EventDateStr}}</td>
                     <td>{{.AgeInDays}}</td>
-					<td>{{.AgeInYears}}</td>
+                    <td>{{.AgeInYears}}</td>
                     <td>
-                        <button class="edit-button" hx-get="/events/users/{{$.UserID}}/lists/{{$.ListName}}/edit/{{.ID}}"
+                        <button class="edit-button" hx-get="/events/lists/{{$.ListName}}/edit/{{.ID}}"
                             hx-target="#edit-form">Edit</button>
-						<button class="delete-button" hx-get="/events/users/{{$.UserID}}/lists/{{$.ListName}}/delete/{{.ID}}"
-							hx-confirm="Are you sure you want to delete this event?" hx-target="#edit-form">Delete</button>
+                        <button class="delete-button" hx-get="/events/lists/{{$.ListName}}/delete/{{.ID}}"
+                            hx-confirm="Are you sure you want to delete this event?"
+                            hx-target="#edit-form">Delete</button>
                     </td>
                 </tr>
                 {{end}}

@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8100:8100"
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/events?sslmode=disable
+      - PORT=8100
+    # volumes:
+      # - .volume/app:/app
+    depends_on:
+      - db
+
+  db:
+    image: postgres:17.2-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=events
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.volume/postgres_data:/var/lib/postgresql/data
+

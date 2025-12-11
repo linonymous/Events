@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
+
 	"syscall"
 	"time"
 
@@ -32,7 +32,22 @@ func main() {
 		location = l
 	}
 
-	ctrl := handlers.NewController(location)
+	// Initialize Postgres Storage
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		log.Fatal("DATABASE_URL must be set")
+	}
+
+	pgStore, err := storage.NewPostgresStorage(databaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	if err := pgStore.CreateTables(); err != nil {
+		log.Fatalf("Failed to create tables: %v", err)
+	}
+
+	ctrl := handlers.NewController(location, pgStore)
 
 	// Custom 404 handler
 	muxRouter.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -48,15 +63,20 @@ func main() {
 
 	eventsRouter := muxRouter.PathPrefix("/events").Subrouter()
 
-	eventsRouter.HandleFunc("/", ctrl.HomeHandler(content)).Methods(http.MethodGet)
-	// eventsRouter.HandleFunc("/users/", ctrl.UsersHandler(content)).Methods(http.MethodGet)
-	// eventsRouter.HandleFunc("/users/{user_id}/lists", ctrl.GetListHandler(content)).Methods(http.MethodGet)
-	eventsRouter.HandleFunc("/users/{user_id}/lists/{list_name}", ctrl.ListHandler(content)).Methods(http.MethodGet)
-	eventsRouter.HandleFunc("/users/{user_id}/lists/{list_name}/edit/{id}", ctrl.EditHandler(content)).Methods(http.MethodGet)
-	eventsRouter.HandleFunc("/users/{user_id}/lists/{list_name}/delete/{id}", ctrl.DeleteHandler).Methods(http.MethodGet)
-	eventsRouter.HandleFunc("/save", ctrl.SaveHandler).Methods(http.MethodPost)
-	// Serve static files
-	//muxRouter.PathPrefix("/css/").Handler(http.FileServer(http.FS(content)))
+	// Public routes
+	eventsRouter.HandleFunc("/login", ctrl.LoginHandler(content)).Methods(http.MethodGet, http.MethodPost)
+	eventsRouter.HandleFunc("/register", ctrl.RegisterHandler(content)).Methods(http.MethodGet, http.MethodPost)
+	eventsRouter.HandleFunc("/logout", ctrl.LogoutHandler)
+
+	// Protected routes
+	protectedRouter := eventsRouter.NewRoute().Subrouter()
+	protectedRouter.Use(handlers.AuthMiddleware)
+
+	protectedRouter.HandleFunc("/", ctrl.HomeHandler(content)).Methods(http.MethodGet)
+	protectedRouter.HandleFunc("/lists/{list_name}", ctrl.ListHandler(content)).Methods(http.MethodGet)
+	protectedRouter.HandleFunc("/lists/{list_name}/edit/{id}", ctrl.EditHandler(content)).Methods(http.MethodGet)
+	protectedRouter.HandleFunc("/lists/{list_name}/delete/{id}", ctrl.DeleteHandler).Methods(http.MethodGet)
+	protectedRouter.HandleFunc("/save", ctrl.SaveHandler).Methods(http.MethodPost)
 
 	// Create a channel to listen for termination signals
 	sigChan := make(chan os.Signal, 1)
@@ -70,27 +90,12 @@ func main() {
 		}
 	}()
 
-	// Start a goroutine to perform periodic backups
-	go periodicBackup(location)
-
 	// Wait for a termination signal
 	sig := <-sigChan
 	fmt.Println("Received signal:", sig)
 
-	if err := backup("crash", location); err != nil {
-		fmt.Println("Error saving backup:", err)
-	}
-
 	fmt.Println("Server stopped gracefully")
 }
-
-// func loggingMiddleware(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		start := time.Now()
-// 		next.ServeHTTP(w, r)
-// 		log.Printf("%s %s %s", r.Method, r.RequestURI, time.Since(start))
-// 	})
-// }
 
 func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -104,30 +109,3 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// Start a goroutine to perform periodic backups
-func periodicBackup(l *time.Location) {
-	for {
-		time.Sleep(1 * time.Hour * 24) // Adjust the interval as needed
-		if storage.DataModified() {
-			if err := backup("periodic", l); err == nil { // no error
-				storage.ResetDataModified()
-			}
-		}
-	}
-}
-
-func backup(backupType string, l *time.Location) error {
-	backupDir := "backup"
-	if err := os.MkdirAll(backupDir, os.ModePerm); err != nil {
-		fmt.Println("Error creating backup directory:", err)
-		return err
-	}
-
-	backupFileName := filepath.Join(backupDir, fmt.Sprintf("%s_%s.json", backupType, time.Now().In(l).Format("20060102150405")))
-	if err := storage.SaveToFile(backupFileName); err != nil {
-		return fmt.Errorf("error saving backup: %v", err.Error())
-	} else {
-		fmt.Println("Backup saved to:", backupFileName)
-		return nil
-	}
-}

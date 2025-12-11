@@ -19,32 +19,32 @@ type Controller struct {
 	mutex     *sync.Mutex
 	userCount int
 	location  *time.Location
+	Store     storage.Storage
 }
 
-func NewController(location *time.Location) *Controller {
+func NewController(location *time.Location, store storage.Storage) *Controller {
 
 	return &Controller{
 		mutex:     &sync.Mutex{},
 		userCount: 0,
 		location:  location,
+		Store:     store,
 	}
 }
 
 func (c *Controller) ListHandler(content embed.FS) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		userID := vars["user_id"]
+		userID := GetUserID(r)
 		listName := vars["list_name"]
 
-		events, logEvent, err := storage.GetEvents(userID, listName)
+		events, err := c.Store.GetEvents(userID, listName)
 		if err != nil {
 			http.Error(w, "Error retrieving events", http.StatusInternalServerError)
 			return
 		}
 
-		if logEvent {
-			log.Printf("%s %s %s %v", r.Method, r.RequestURI, r.RemoteAddr, r.UserAgent())
-		}
+		log.Printf("%s %s %s %v", r.Method, r.RequestURI, r.RemoteAddr, r.UserAgent())
 
 		currTime := c.now()
 
@@ -92,10 +92,10 @@ func (c *Controller) EditHandler(content embed.FS) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		eventID, _ := strconv.Atoi(vars["id"])
-		userID := vars["user_id"]
+		userID := GetUserID(r)
 		listName := vars["list_name"]
 
-		event, err := storage.GetEventByID(eventID)
+		event, err := c.Store.GetEventByID(eventID, userID)
 		if err != nil {
 			http.Error(w, "Event not found", http.StatusNotFound)
 			return
@@ -118,18 +118,15 @@ func (c *Controller) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	eventID, _ := strconv.Atoi(vars["id"])
-	userID := vars["user_id"]
+	userID := GetUserID(r)
 	listName := vars["list_name"]
 
-	event, err := storage.GetEventByID(eventID)
-	if err != nil {
-		http.Error(w, "Event not found", http.StatusNotFound)
+	if err := c.Store.DeleteEvent(userID, eventID); err != nil {
+		http.Error(w, "Error deleting event", http.StatusInternalServerError)
 		return
 	}
 
-	storage.DeleteEvent(userID, listName, event)
-
-	w.Header().Set("HX-Redirect", fmt.Sprintf("/events/users/%s/lists/%s", userID, listName))
+	w.Header().Set("HX-Redirect", fmt.Sprintf("/events/lists/%s", listName))
 }
 
 func (c *Controller) SaveHandler(w http.ResponseWriter, r *http.Request) {
@@ -154,16 +151,21 @@ func (c *Controller) SaveHandler(w http.ResponseWriter, r *http.Request) {
 		EventDate: eventDate,
 	}
 
-	userID := r.FormValue("user_id")
+	userID := GetUserID(r)
 	listName := r.FormValue("list_name")
 
 	if event.ID == 0 {
-		event.ID = storage.SaveEvent(userID, listName, event)
+		err = c.Store.SaveEvent(userID, listName, &event)
 	} else {
-		storage.UpdateEvent(userID, listName, event)
+		err = c.Store.UpdateEvent(userID, &event)
 	}
 
-	w.Header().Set("HX-Redirect", fmt.Sprintf("/events/users/%s/lists/%s", userID, listName))
+	if err != nil {
+		http.Error(w, "Error saving event", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("HX-Redirect", fmt.Sprintf("/events/lists/%s", listName))
 }
 
 func diff(a, b time.Time) (year, month, day int) {

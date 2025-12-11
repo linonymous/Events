@@ -27,3 +27,7 @@ go.work.sum
 # env file
 .env
 sb-dashboard
+.volume
+app
+main_linux
+data/

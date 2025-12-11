@@ -1,10 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Home</title>
 		<script src="https://unpkg.com/htmx.org@1.5.0"></script>
+		<script>
+			function goToList() {
+				var listName = document.getElementById("list-name").value;
+				if (listName) {
+					window.location.href = "/events/lists/" + encodeURIComponent(listName);
+				}
+			}
+		</script>
 		<style>
 			body {
 				background-color: #121212;
@@ -23,19 +32,52 @@
 				margin-bottom: 20px;
 			}
 
-			a {
-				color: #1e90ff;
-				text-decoration: none;
+			.container {
+				text-align: center;
 			}
 
-			a:hover {
-				text-decoration: underline;
+			input {
+				padding: 10px;
+				border-radius: 5px;
+				border: none;
+				margin-right: 10px;
+			}
+
+			button {
+				padding: 10px 20px;
+				background-color: #007bff;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+			}
+
+			button:hover {
+				background-color: #0056b3;
+			}
+
+			.logout-link {
+				margin-top: 20px;
+				display: block;
+				color: #ff6b6b;
+				text-decoration: none;
 			}
 		</style>
 	</head>
+
 	<body>
-		<h1>Welcome to the SB dashboard</h1>
-		<p>your are {{.Count}}th user (not unique) to use this platform as of today {{.TodaysDate}}</p>
-		<p>Use <a href="users/userid/lists/listid">users/{userid}/lists/{listid}</a> to get started</p>
+		<div class="container">
+			<h1>Welcome to the SB dashboard</h1>
+			<p>You are the {{.Count}}th user (not unique) to use this platform as of today {{.TodaysDate}}</p>
+
+			<div style="margin-top: 2rem;">
+				<h3>Create or Open a List</h3>
+				<input type="text" id="list-name" placeholder="Enter list name (e.g., todos)">
+				<button onclick="goToList()">Go</button>
+			</div>
+
+			<a href="/events/logout" class="logout-link">Logout</a>
+		</div>
 	</body>
+
 </html>

@@ -12,17 +12,7 @@ type (
 		AgeInYears   string    `json:"-"`
 	}
 
-	EventList struct {
-		ID           string             `json:"id"`
-		PasswordHash string             `json:"password_hash"`
-		Lists        map[string][]Event `json:"lists"`
-	}
 
-	User struct {
-		ID           string             `json:"id"`
-		PasswordHash string             `json:"password_hash"`
-		Lists        map[string][]Event `json:"lists"`
-	}
 
 	Backup struct {
 		Service string `json:"service"`
