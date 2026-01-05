@@ -139,7 +139,7 @@ func (c *Controller) SaveHandler(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.FormValue("id"))
 	title := r.FormValue("title")
 	dateStr := r.FormValue("event_date")
-	eventDate, err := time.Parse(time.RFC3339, dateStr+"T00:00:00+05:30")
+	eventDate, err := time.ParseInLocation("2006-01-02", dateStr, c.location)
 	if err != nil {
 		http.Error(w, "Invalid date format", http.StatusBadRequest)
 		return
