@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/IAmSurajBobade/sb-dashboard/internal/handlers"
-	"github.com/IAmSurajBobade/sb-dashboard/internal/storage"
+	"github.com/linonymous/Events/pkg/handlers"
+	"github.com/linonymous/Events/pkg/storage"
 	"github.com/gorilla/mux"
 )
 

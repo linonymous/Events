@@ -1,6 +1,6 @@
 package storage
 
-import "github.com/IAmSurajBobade/sb-dashboard/internal/models"
+import "github.com/linonymous/Events/pkg/models"
 
 type Storage interface {
 	CreateTables() error
