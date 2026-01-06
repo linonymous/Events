@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,11 +22,12 @@ var content embed.FS
 var staticFiles embed.FS
 
 var (
-	router *mux.Router
-	once   sync.Once
+	router    *mux.Router
+	once      sync.Once
+	initError error
 )
 
-func getRouter() *mux.Router {
+func getRouter() (*mux.Router, error) {
 	once.Do(func() {
 		router = mux.NewRouter()
 		location := time.UTC
@@ -36,16 +38,25 @@ func getRouter() *mux.Router {
 		// Initialize Postgres Storage
 		databaseURL := os.Getenv("DATABASE_URL")
 		if databaseURL == "" {
-			log.Fatal("DATABASE_URL must be set")
+			initError = fmt.Errorf("DATABASE_URL environment variable is not set. Please configure it in your Vercel project settings")
+			return
+		}
+
+		// Check for localhost URLs which won't work in serverless environments
+		if strings.Contains(databaseURL, "localhost") || strings.Contains(databaseURL, "127.0.0.1") {
+			initError = fmt.Errorf("DATABASE_URL points to localhost (%s). In serverless environments like Vercel, you need an external database. Consider using Neon, Supabase, or Railway for PostgreSQL hosting", databaseURL)
+			return
 		}
 
 		pgStore, err := storage.NewPostgresStorage(databaseURL)
 		if err != nil {
-			log.Fatalf("Failed to connect to database: %v", err)
+			initError = fmt.Errorf("failed to connect to database: %v. Please verify your DATABASE_URL is correct and the database is accessible", err)
+			return
 		}
 
 		if err := pgStore.CreateTables(); err != nil {
-			log.Fatalf("Failed to create tables: %v", err)
+			initError = fmt.Errorf("failed to create tables: %v", err)
+			return
 		}
 
 		ctrl := handlers.NewController(location, pgStore)
@@ -99,7 +110,7 @@ func getRouter() *mux.Router {
 		protectedRouter.HandleFunc("/api/push/status", ctrl.GetPushStatusHandler).Methods(http.MethodGet)
 		protectedRouter.HandleFunc("/api/push/test", ctrl.TestPushHandler).Methods(http.MethodPost)
 	})
-	return router
+	return router, initError
 }
 
 func recoveryMiddleware(next http.Handler) http.Handler {
@@ -116,5 +127,11 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 
 // Handler is the Vercel serverless function entry point
 func Handler(w http.ResponseWriter, r *http.Request) {
-	getRouter().ServeHTTP(w, r)
+	router, err := getRouter()
+	if err != nil {
+		log.Printf("Initialization error: %v", err)
+		http.Error(w, fmt.Sprintf("Server configuration error: %v", err), http.StatusInternalServerError)
+		return
+	}
+	router.ServeHTTP(w, r)
 }
