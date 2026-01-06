@@ -18,12 +18,5 @@
       "path": "/events/api/cron/send-reminders",
       "schedule": "0 9 * * *"
     }
-  ],
-  "env": {
-    "DATABASE_URL": "@database-url",
-    "VAPID_PUBLIC_KEY": "@vapid-public-key",
-    "VAPID_PRIVATE_KEY": "@vapid-private-key",
-    "VAPID_EMAIL": "@vapid-email",
-    "CRON_SECRET": "@cron-secret"
-  }
+  ]
 }
