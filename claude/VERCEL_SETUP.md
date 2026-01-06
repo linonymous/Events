@@ -175,6 +175,41 @@ vercel --prod  # Deploy to production
 vercel         # Deploy preview
 ```
 
+### GitHub Actions Deployment
+
+A GitHub Action workflow (`.github/workflows/deploy.yml`) is included for CI/CD deployment.
+
+**Required GitHub Secrets:**
+
+1. Go to GitHub repo → Settings → Secrets and variables → Actions
+2. Add these secrets:
+
+| Secret | How to Get |
+|--------|------------|
+| `VERCEL_TOKEN` | vercel.com → Settings → Tokens → Create |
+| `VERCEL_ORG_ID` | Run `vercel` locally, check `.vercel/project.json` |
+| `VERCEL_PROJECT_ID` | Run `vercel` locally, check `.vercel/project.json` |
+
+**Getting Vercel IDs:**
+
+```bash
+# Install and link project
+npm i -g vercel
+vercel login
+vercel link
+
+# IDs are now in .vercel/project.json
+cat .vercel/project.json
+```
+
+Output:
+```json
+{
+  "orgId": "team_xxxxx",      # VERCEL_ORG_ID
+  "projectId": "prj_xxxxx"    # VERCEL_PROJECT_ID
+}
+```
+
 ## Monitoring
 
 ### Function Logs
