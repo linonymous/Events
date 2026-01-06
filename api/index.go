@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/IAmSurajBobade/sb-dashboard/internal/handlers"
-	"github.com/IAmSurajBobade/sb-dashboard/internal/storage"
+	"github.com/IAmSurajBobade/sb-dashboard/pkg/handlers"
+	"github.com/IAmSurajBobade/sb-dashboard/pkg/storage"
 	"github.com/gorilla/mux"
 )
 

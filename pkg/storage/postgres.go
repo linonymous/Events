@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 
-	"github.com/IAmSurajBobade/sb-dashboard/internal/models"
+	"github.com/IAmSurajBobade/sb-dashboard/pkg/models"
 	_ "github.com/lib/pq"
 )
 

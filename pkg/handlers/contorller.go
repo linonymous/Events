@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/IAmSurajBobade/sb-dashboard/internal/models"
-	"github.com/IAmSurajBobade/sb-dashboard/internal/storage"
+	"github.com/IAmSurajBobade/sb-dashboard/pkg/models"
+	"github.com/IAmSurajBobade/sb-dashboard/pkg/storage"
 	"github.com/gorilla/mux"
 )
 

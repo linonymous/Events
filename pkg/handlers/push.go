@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/IAmSurajBobade/sb-dashboard/internal/models"
+	"github.com/IAmSurajBobade/sb-dashboard/pkg/models"
 	webpush "github.com/SherClockHolmes/webpush-go"
 )
 
