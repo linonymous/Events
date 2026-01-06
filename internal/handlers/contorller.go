@@ -105,6 +105,7 @@ func (c *Controller) EditHandler(content embed.FS) http.HandlerFunc {
 			"ID":           event.ID,
 			"Title":        event.Title,
 			"EventDateStr": event.EventDate.Format("2006-01-02"),
+			"Recurring":    event.Recurring,
 			"UserID":       userID,
 			"ListName":     listName,
 		}
@@ -145,10 +146,14 @@ func (c *Controller) SaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse recurring field - defaults to true (yearly) if not specified
+	recurring := r.FormValue("recurring") != "false"
+
 	event := models.Event{
 		ID:        id,
 		Title:     title,
 		EventDate: eventDate,
+		Recurring: recurring,
 	}
 
 	userID := GetUserID(r)

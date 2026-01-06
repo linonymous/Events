@@ -40,8 +40,16 @@ func (s *PostgresStorage) CreateTables() error {
 			list_name TEXT NOT NULL,
 			title TEXT NOT NULL,
 			event_date TIMESTAMP WITH TIME ZONE NOT NULL,
+			recurring BOOLEAN DEFAULT true,
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 		)`,
+		// Migration: Add recurring column if it doesn't exist
+		`DO $$
+		BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='recurring') THEN
+				ALTER TABLE events ADD COLUMN recurring BOOLEAN DEFAULT true;
+			END IF;
+		END $$`,
 		`CREATE TABLE IF NOT EXISTS push_subscriptions (
 			id SERIAL PRIMARY KEY,
 			user_id INT REFERENCES users(id) ON DELETE CASCADE,
@@ -76,14 +84,14 @@ func (s *PostgresStorage) GetUser(username string) (*models.User, error) {
 }
 
 func (s *PostgresStorage) SaveEvent(userID int, listName string, event *models.Event) error {
-	err := s.db.QueryRow("INSERT INTO events (user_id, list_name, title, event_date) VALUES ($1, $2, $3, $4) RETURNING id",
-		userID, listName, event.Title, event.EventDate).Scan(&event.ID)
+	err := s.db.QueryRow("INSERT INTO events (user_id, list_name, title, event_date, recurring) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+		userID, listName, event.Title, event.EventDate, event.Recurring).Scan(&event.ID)
 	return err
 }
 
 func (s *PostgresStorage) UpdateEvent(userID int, event *models.Event) error {
-	_, err := s.db.Exec("UPDATE events SET title = $1, event_date = $2 WHERE id = $3 AND user_id = $4",
-		event.Title, event.EventDate, event.ID, userID)
+	_, err := s.db.Exec("UPDATE events SET title = $1, event_date = $2, recurring = $3 WHERE id = $4 AND user_id = $5",
+		event.Title, event.EventDate, event.Recurring, event.ID, userID)
 	return err
 }
 
@@ -93,7 +101,7 @@ func (s *PostgresStorage) DeleteEvent(userID int, eventID int) error {
 }
 
 func (s *PostgresStorage) GetEvents(userID int, listName string) ([]models.Event, error) {
-	rows, err := s.db.Query("SELECT id, title, event_date FROM events WHERE user_id = $1 AND list_name = $2 ORDER BY event_date ASC", userID, listName)
+	rows, err := s.db.Query("SELECT id, title, event_date, COALESCE(recurring, true) FROM events WHERE user_id = $1 AND list_name = $2 ORDER BY event_date ASC", userID, listName)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +110,7 @@ func (s *PostgresStorage) GetEvents(userID int, listName string) ([]models.Event
 	var events []models.Event
 	for rows.Next() {
 		var e models.Event
-		if err := rows.Scan(&e.ID, &e.Title, &e.EventDate); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.EventDate, &e.Recurring); err != nil {
 			return nil, err
 		}
 		events = append(events, e)
@@ -112,8 +120,8 @@ func (s *PostgresStorage) GetEvents(userID int, listName string) ([]models.Event
 
 func (s *PostgresStorage) GetEventByID(eventID int, userID int) (*models.Event, error) {
 	var e models.Event
-	err := s.db.QueryRow("SELECT id, title, event_date FROM events WHERE id = $1 AND user_id = $2", eventID, userID).
-		Scan(&e.ID, &e.Title, &e.EventDate)
+	err := s.db.QueryRow("SELECT id, title, event_date, COALESCE(recurring, true) FROM events WHERE id = $1 AND user_id = $2", eventID, userID).
+		Scan(&e.ID, &e.Title, &e.EventDate, &e.Recurring)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +224,7 @@ func (s *PostgresStorage) GetAllPushSubscriptions() ([]models.PushSubscription, 
 
 func (s *PostgresStorage) GetAllEventsForNotifications() ([]models.EventWithUser, error) {
 	rows, err := s.db.Query(`
-		SELECT id, user_id, list_name, title, event_date
+		SELECT id, user_id, list_name, title, event_date, COALESCE(recurring, true)
 		FROM events
 		ORDER BY event_date ASC
 	`)
@@ -228,7 +236,7 @@ func (s *PostgresStorage) GetAllEventsForNotifications() ([]models.EventWithUser
 	var events []models.EventWithUser
 	for rows.Next() {
 		var e models.EventWithUser
-		if err := rows.Scan(&e.ID, &e.UserID, &e.ListName, &e.Title, &e.EventDate); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.ListName, &e.Title, &e.EventDate, &e.Recurring); err != nil {
 			return nil, err
 		}
 		events = append(events, e)

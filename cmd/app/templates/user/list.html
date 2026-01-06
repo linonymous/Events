@@ -109,6 +109,7 @@
                 <tr>
                     <th>Title</th>
                     <th>Date</th>
+                    <th>Type</th>
                     <th>Days Since</th>
                     <th>Years Since</th>
                     <th>Actions</th>
@@ -119,6 +120,7 @@
                 <tr>
                     <td>{{.Title}}</td>
                     <td>{{.EventDateStr}}</td>
+                    <td>{{if .Recurring}}Yearly{{else}}Once{{end}}</td>
                     <td>{{.AgeInDays}}</td>
                     <td>{{.AgeInYears}}</td>
                     <td>
@@ -140,6 +142,10 @@
                 <input type="hidden" id="list-name" name="list_name" value="{{.ListName}}">
                 <input type="text" id="event-title" name="title" placeholder="Event Title" required>
                 <input type="date" id="event-date" name="event_date" required>
+                <select name="recurring" style="padding: 10px; margin: 5px;">
+                    <option value="true" selected>Yearly (birthday/anniversary)</option>
+                    <option value="false">One-time (appointment)</option>
+                </select>
                 <button type="submit">Save</button>
             </form>
             <div id="response"></div>

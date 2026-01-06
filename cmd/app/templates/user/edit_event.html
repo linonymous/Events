@@ -6,6 +6,10 @@
         <input type="hidden" id="list-name" name="list_name" value="{{.ListName}}">
         <input type="text" id="event-title" name="title" placeholder="Event Title" value="{{.Title}}" required>
         <input type="date" id="event-date" name="event_date" value="{{.EventDateStr}}" required>
+        <select name="recurring" style="padding: 10px; margin: 5px;">
+            <option value="true" {{if .Recurring}}selected{{end}}>Yearly (birthday/anniversary)</option>
+            <option value="false" {{if not .Recurring}}selected{{end}}>One-time (appointment)</option>
+        </select>
         <button type="submit">Save</button>
     </form>
     <div id="response"></div>

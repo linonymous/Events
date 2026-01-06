@@ -217,10 +217,18 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 	for _, event := range events {
 		checked++
 
-		// For recurring events (birthdays/anniversaries), calculate next occurrence
-		// Treat all events as yearly recurring by default
-		nextOccurrence := getNextYearlyOccurrence(event.EventDate, today, c.location)
-		daysUntil := int(nextOccurrence.Sub(today).Hours() / 24)
+		var targetDate time.Time
+		var daysUntil int
+
+		if event.Recurring {
+			// For recurring events (birthdays/anniversaries), calculate next yearly occurrence
+			targetDate = getNextYearlyOccurrence(event.EventDate, today, c.location)
+		} else {
+			// For one-time events, use the actual event date
+			targetDate = time.Date(event.EventDate.Year(), event.EventDate.Month(), event.EventDate.Day(), 0, 0, 0, 0, c.location)
+		}
+
+		daysUntil = int(targetDate.Sub(today).Hours() / 24)
 
 		// Notify if event is today or tomorrow
 		if daysUntil < 0 || daysUntil > 1 {
@@ -232,23 +240,32 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 			continue
 		}
 
-		// Calculate age (years since original date)
-		age := today.Year() - event.EventDate.Year()
-		if today.Month() < event.EventDate.Month() ||
-			(today.Month() == event.EventDate.Month() && today.Day() < event.EventDate.Day()) {
-			age--
-		}
-
 		var body string
-		if daysUntil == 0 {
-			if age > 0 {
-				body = fmt.Sprintf("%s is today! (%d years)", event.Title, age)
+		if event.Recurring {
+			// Calculate age (years since original date) for recurring events
+			age := today.Year() - event.EventDate.Year()
+			if today.Month() < event.EventDate.Month() ||
+				(today.Month() == event.EventDate.Month() && today.Day() < event.EventDate.Day()) {
+				age--
+			}
+
+			if daysUntil == 0 {
+				if age > 0 {
+					body = fmt.Sprintf("%s is today! (%d years)", event.Title, age)
+				} else {
+					body = fmt.Sprintf("%s is today!", event.Title)
+				}
 			} else {
-				body = fmt.Sprintf("%s is today!", event.Title)
+				if age >= 0 {
+					body = fmt.Sprintf("%s is tomorrow! (%d years)", event.Title, age+1)
+				} else {
+					body = fmt.Sprintf("%s is tomorrow!", event.Title)
+				}
 			}
 		} else {
-			if age >= 0 {
-				body = fmt.Sprintf("%s is tomorrow! (%d years)", event.Title, age+1)
+			// One-time event message
+			if daysUntil == 0 {
+				body = fmt.Sprintf("%s is today!", event.Title)
 			} else {
 				body = fmt.Sprintf("%s is tomorrow!", event.Title)
 			}
