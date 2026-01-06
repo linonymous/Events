@@ -3,8 +3,14 @@
 
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Event List</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="theme-color" content="#121212">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Events">
+        <link rel="manifest" href="/events/static/manifest.json">
+        <link rel="apple-touch-icon" href="/events/static/icon-192.svg">
+        <title>Events - {{.ListName}}</title>
         <script src="https://unpkg.com/htmx.org@1.5.0"></script>
         <style>
             body {
@@ -103,6 +109,7 @@
                 <tr>
                     <th>Title</th>
                     <th>Date</th>
+                    <th>Type</th>
                     <th>Days Since</th>
                     <th>Years Since</th>
                     <th>Actions</th>
@@ -113,6 +120,7 @@
                 <tr>
                     <td>{{.Title}}</td>
                     <td>{{.EventDateStr}}</td>
+                    <td>{{if .Recurring}}Yearly{{else}}Once{{end}}</td>
                     <td>{{.AgeInDays}}</td>
                     <td>{{.AgeInYears}}</td>
                     <td>
@@ -134,6 +142,10 @@
                 <input type="hidden" id="list-name" name="list_name" value="{{.ListName}}">
                 <input type="text" id="event-title" name="title" placeholder="Event Title" required>
                 <input type="date" id="event-date" name="event_date" required>
+                <select name="recurring" style="padding: 10px; margin: 5px;">
+                    <option value="true" selected>Yearly (birthday/anniversary)</option>
+                    <option value="false">One-time (appointment)</option>
+                </select>
                 <button type="submit">Save</button>
             </form>
             <div id="response"></div>
