@@ -3,7 +3,8 @@ package storage
 import (
 	"database/sql"
 	"fmt"
-
+	"net/url"
+	"strings"
 
 	"github.com/linonymous/Events/pkg/models"
 	_ "github.com/lib/pq"
@@ -13,14 +14,51 @@ type PostgresStorage struct {
 	db *sql.DB
 }
 
-func NewPostgresStorage(dataSourceName string) (*PostgresStorage, error) {
-	db, err := sql.Open("postgres", dataSourceName)
-	if err != nil {
-		return nil, err
+// ensureSSLMode ensures the connection string has sslmode set (required for Supabase)
+func ensureSSLMode(connStr string) string {
+	// If it's already a key=value format, check for sslmode
+	if !strings.Contains(connStr, "://") {
+		if !strings.Contains(connStr, "sslmode=") {
+			return connStr + " sslmode=require"
+		}
+		return connStr
 	}
 
+	// Parse as URL
+	u, err := url.Parse(connStr)
+	if err != nil {
+		return connStr
+	}
+
+	// Check if sslmode is already set
+	q := u.Query()
+	if q.Get("sslmode") == "" {
+		q.Set("sslmode", "require")
+		u.RawQuery = q.Encode()
+	}
+
+	return u.String()
+}
+
+func NewPostgresStorage(dataSourceName string) (*PostgresStorage, error) {
+	if dataSourceName == "" {
+		return nil, fmt.Errorf("database connection string is empty")
+	}
+
+	// Ensure SSL mode is set (required for cloud databases like Supabase)
+	connStr := ensureSSLMode(dataSourceName)
+
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Configure connection pool for serverless environment
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(2)
+
 	if err := db.Ping(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	return &PostgresStorage{db: db}, nil

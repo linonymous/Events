@@ -36,13 +36,21 @@ func getRouter() *mux.Router {
 		// Initialize Postgres Storage
 		databaseURL := os.Getenv("DATABASE_URL")
 		if databaseURL == "" {
-			log.Fatal("DATABASE_URL must be set")
+			log.Fatal("DATABASE_URL environment variable is not set")
+		}
+
+		// Log connection attempt (without exposing credentials)
+		if len(databaseURL) > 20 {
+			log.Printf("Attempting database connection (URL length: %d chars, starts with: %s...)", len(databaseURL), databaseURL[:20])
+		} else {
+			log.Printf("Warning: DATABASE_URL seems too short (length: %d)", len(databaseURL))
 		}
 
 		pgStore, err := storage.NewPostgresStorage(databaseURL)
 		if err != nil {
 			log.Fatalf("Failed to connect to database: %v", err)
 		}
+		log.Println("Successfully connected to database")
 
 		if err := pgStore.CreateTables(); err != nil {
 			log.Fatalf("Failed to create tables: %v", err)
