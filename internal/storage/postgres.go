@@ -42,6 +42,14 @@ func (s *PostgresStorage) CreateTables() error {
 			event_date TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 		)`,
+		`CREATE TABLE IF NOT EXISTS push_subscriptions (
+			id SERIAL PRIMARY KEY,
+			user_id INT REFERENCES users(id) ON DELETE CASCADE,
+			endpoint TEXT UNIQUE NOT NULL,
+			p256dh TEXT NOT NULL,
+			auth TEXT NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		)`,
 	}
 
 	for _, query := range queries {
@@ -128,4 +136,102 @@ func (s *PostgresStorage) GetLists(userID int) ([]string, error) {
 		lists = append(lists, listName)
 	}
 	return lists, nil
+}
+
+// Push subscription methods
+
+func (s *PostgresStorage) SavePushSubscription(userID int, endpoint, p256dh, auth string) error {
+	// Use upsert to handle existing subscriptions
+	_, err := s.db.Exec(`
+		INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (endpoint) DO UPDATE SET
+			user_id = $1,
+			p256dh = $3,
+			auth = $4
+	`, userID, endpoint, p256dh, auth)
+	return err
+}
+
+func (s *PostgresStorage) DeletePushSubscription(endpoint string) error {
+	_, err := s.db.Exec("DELETE FROM push_subscriptions WHERE endpoint = $1", endpoint)
+	return err
+}
+
+func (s *PostgresStorage) GetPushSubscription(userID int, endpoint string) (*models.PushSubscription, error) {
+	var sub models.PushSubscription
+	err := s.db.QueryRow(`
+		SELECT id, user_id, endpoint, p256dh, auth, created_at
+		FROM push_subscriptions
+		WHERE user_id = $1 AND endpoint = $2
+	`, userID, endpoint).Scan(&sub.ID, &sub.UserID, &sub.Endpoint, &sub.P256dh, &sub.Auth, &sub.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &sub, nil
+}
+
+func (s *PostgresStorage) GetPushSubscriptionsByUser(userID int) ([]models.PushSubscription, error) {
+	rows, err := s.db.Query(`
+		SELECT id, user_id, endpoint, p256dh, auth, created_at
+		FROM push_subscriptions
+		WHERE user_id = $1
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []models.PushSubscription
+	for rows.Next() {
+		var sub models.PushSubscription
+		if err := rows.Scan(&sub.ID, &sub.UserID, &sub.Endpoint, &sub.P256dh, &sub.Auth, &sub.CreatedAt); err != nil {
+			return nil, err
+		}
+		subs = append(subs, sub)
+	}
+	return subs, nil
+}
+
+func (s *PostgresStorage) GetAllPushSubscriptions() ([]models.PushSubscription, error) {
+	rows, err := s.db.Query(`
+		SELECT id, user_id, endpoint, p256dh, auth, created_at
+		FROM push_subscriptions
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []models.PushSubscription
+	for rows.Next() {
+		var sub models.PushSubscription
+		if err := rows.Scan(&sub.ID, &sub.UserID, &sub.Endpoint, &sub.P256dh, &sub.Auth, &sub.CreatedAt); err != nil {
+			return nil, err
+		}
+		subs = append(subs, sub)
+	}
+	return subs, nil
+}
+
+func (s *PostgresStorage) GetAllEventsForNotifications() ([]models.EventWithUser, error) {
+	rows, err := s.db.Query(`
+		SELECT id, user_id, list_name, title, event_date
+		FROM events
+		ORDER BY event_date ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []models.EventWithUser
+	for rows.Next() {
+		var e models.EventWithUser
+		if err := rows.Scan(&e.ID, &e.UserID, &e.ListName, &e.Title, &e.EventDate); err != nil {
+			return nil, err
+		}
+		events = append(events, e)
+	}
+	return events, nil
 }

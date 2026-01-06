@@ -12,7 +12,13 @@ type (
 		AgeInYears   string    `json:"-"`
 	}
 
-
+	EventWithUser struct {
+		ID        int       `json:"id"`
+		UserID    int       `json:"user_id"`
+		ListName  string    `json:"list_name"`
+		Title     string    `json:"title"`
+		EventDate time.Time `json:"event_date"`
+	}
 
 	Backup struct {
 		Service string `json:"service"`

@@ -3,8 +3,14 @@
 
 	<head>
 		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Home</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<meta name="theme-color" content="#121212">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+		<meta name="apple-mobile-web-app-title" content="Events">
+		<link rel="manifest" href="/events/static/manifest.json">
+		<link rel="apple-touch-icon" href="/events/static/icon-192.svg">
+		<title>Events - Home</title>
 		<script src="https://unpkg.com/htmx.org@1.5.0"></script>
 		<script>
 			function goToList() {
@@ -13,6 +19,165 @@
 					window.location.href = "/events/lists/" + encodeURIComponent(listName);
 				}
 			}
+
+			// Push notification functions
+			async function registerServiceWorker() {
+				if ('serviceWorker' in navigator) {
+					try {
+						await navigator.serviceWorker.register('/events/sw.js', { scope: '/events/' });
+						console.log('Service Worker registered');
+					} catch (err) {
+						console.error('Service Worker registration failed:', err);
+					}
+				}
+			}
+
+			function isPWA() {
+				return window.matchMedia('(display-mode: standalone)').matches ||
+					window.navigator.standalone === true;
+			}
+
+			function isIOSSafari() {
+				const ua = window.navigator.userAgent;
+				const isIOS = /iPad|iPhone|iPod/.test(ua);
+				const isWebkit = /WebKit/.test(ua);
+				const isChrome = /CriOS/.test(ua);
+				return isIOS && isWebkit && !isChrome;
+			}
+
+			async function checkNotificationStatus() {
+				const statusEl = document.getElementById('notification-status');
+				const btnEl = document.getElementById('notification-btn');
+				const testBtn = document.getElementById('test-btn');
+
+				if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+					statusEl.textContent = 'Push notifications not supported';
+					btnEl.style.display = 'none';
+					testBtn.style.display = 'none';
+					return;
+				}
+
+				if (isIOSSafari() && !isPWA()) {
+					statusEl.innerHTML = '<a href="#" onclick="showSetupGuide()" style="color: #03dac6;">Add to Home Screen for notifications</a>';
+					btnEl.style.display = 'none';
+					testBtn.style.display = 'none';
+					return;
+				}
+
+				if (Notification.permission === 'denied') {
+					statusEl.textContent = 'Notifications blocked';
+					btnEl.style.display = 'none';
+					testBtn.style.display = 'none';
+					return;
+				}
+
+				try {
+					const resp = await fetch('/events/api/push/status');
+					const data = await resp.json();
+
+					if (data.subscribed) {
+						statusEl.textContent = 'Notifications: ON';
+						statusEl.style.color = '#03dac6';
+						btnEl.textContent = 'Disable';
+						btnEl.onclick = disableNotifications;
+						btnEl.className = 'btn-small btn-danger';
+						testBtn.style.display = 'inline-block';
+					} else {
+						statusEl.textContent = 'Notifications: OFF';
+						statusEl.style.color = '#888';
+						btnEl.textContent = 'Enable';
+						btnEl.onclick = enableNotifications;
+						btnEl.className = 'btn-small btn-primary';
+						testBtn.style.display = 'none';
+					}
+				} catch (err) {
+					statusEl.textContent = 'Notifications: OFF';
+					btnEl.textContent = 'Enable';
+					btnEl.onclick = enableNotifications;
+					testBtn.style.display = 'none';
+				}
+			}
+
+			async function enableNotifications() {
+				try {
+					const permission = await Notification.requestPermission();
+					if (permission !== 'granted') {
+						alert('Notification permission denied');
+						return;
+					}
+
+					const registration = await navigator.serviceWorker.ready;
+
+					const keyResp = await fetch('/events/api/vapid-key');
+					const { publicKey } = await keyResp.json();
+
+					const subscription = await registration.pushManager.subscribe({
+						userVisibleOnly: true,
+						applicationServerKey: urlBase64ToUint8Array(publicKey)
+					});
+
+					await fetch('/events/api/push/subscribe', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(subscription.toJSON())
+					});
+
+					checkNotificationStatus();
+				} catch (err) {
+					console.error('Failed to enable notifications:', err);
+					alert('Failed to enable notifications: ' + err.message);
+				}
+			}
+
+			async function disableNotifications() {
+				try {
+					const registration = await navigator.serviceWorker.ready;
+					const subscription = await registration.pushManager.getSubscription();
+
+					if (subscription) {
+						await fetch('/events/api/push/unsubscribe', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ endpoint: subscription.endpoint })
+						});
+						await subscription.unsubscribe();
+					}
+
+					checkNotificationStatus();
+				} catch (err) {
+					console.error('Failed to disable notifications:', err);
+				}
+			}
+
+			async function testNotification() {
+				try {
+					const resp = await fetch('/events/api/push/test', { method: 'POST' });
+					const data = await resp.json();
+					alert('Test sent! ' + data.sent + '/' + data.total + ' delivered');
+				} catch (err) {
+					alert('Failed to send test');
+				}
+			}
+
+			function showSetupGuide() {
+				alert('To enable notifications on iOS:\n\n1. Tap the Share button (box with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"\n4. Open the app from your home screen\n5. Click "Enable" on notifications');
+			}
+
+			function urlBase64ToUint8Array(base64String) {
+				const padding = '='.repeat((4 - base64String.length % 4) % 4);
+				const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+				const rawData = window.atob(base64);
+				const outputArray = new Uint8Array(rawData.length);
+				for (let i = 0; i < rawData.length; ++i) {
+					outputArray[i] = rawData.charCodeAt(i);
+				}
+				return outputArray;
+			}
+
+			document.addEventListener('DOMContentLoaded', () => {
+				registerServiceWorker();
+				checkNotificationStatus();
+			});
 		</script>
 		<style>
 			body {
@@ -20,12 +185,9 @@
 				color: #ffffff;
 				font-family: Arial, sans-serif;
 				margin: 0;
-				padding: 0;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: center;
-				height: 100vh;
+				padding: 20px;
+				min-height: 100vh;
+				box-sizing: border-box;
 			}
 
 			h1 {
@@ -33,6 +195,8 @@
 			}
 
 			.container {
+				max-width: 600px;
+				margin: 0 auto;
 				text-align: center;
 			}
 
@@ -56,32 +220,85 @@
 				background-color: #0056b3;
 			}
 
+			.btn-small {
+				padding: 5px 12px;
+				font-size: 12px;
+				margin-left: 10px;
+			}
+
+			.btn-primary {
+				background-color: #03dac6;
+				color: #000;
+			}
+
+			.btn-danger {
+				background-color: #cf6679;
+				color: #000;
+			}
+
+			.notification-bar {
+				background-color: #1e1e1e;
+				padding: 12px 16px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 10px;
+				flex-wrap: wrap;
+			}
+
 			.logout-link {
 				margin-top: 20px;
 				display: block;
 				color: #ff6b6b;
 				text-decoration: none;
 			}
+
+			ul {
+				list-style-type: none;
+				padding: 0;
+			}
+
+			ul li {
+				margin: 8px 0;
+			}
+
+			ul a {
+				color: #03dac6;
+				text-decoration: none;
+			}
+
+			ul a:hover {
+				text-decoration: underline;
+			}
 		</style>
 	</head>
 
 	<body>
 		<div class="container">
-			<h1>Welcome to the SB dashboard</h1>
-			<p>You are the {{.Count}}th user (not unique) to use this platform as of today {{.TodaysDate}}</p>
+			<h1>Events</h1>
+
+			<div class="notification-bar">
+				<span id="notification-status">Checking...</span>
+				<button id="notification-btn" class="btn-small btn-primary">Enable</button>
+				<button id="test-btn" class="btn-small" onclick="testNotification()" style="display:none;">Test</button>
+			</div>
+
+			<p style="color: #888; font-size: 14px;">You are visitor #{{.Count}} today ({{.TodaysDate}})</p>
 
 			<div style="margin-top: 2rem;">
 				<h3>Create or Open a List</h3>
-				<input type="text" id="list-name" placeholder="Enter list name (e.g., todos)">
+				<input type="text" id="list-name" placeholder="Enter list name (e.g., birthdays)">
 				<button onclick="goToList()">Go</button>
 			</div>
 
 			{{if .Lists}}
 			<div style="margin-top: 2rem;">
 				<h3>Your Lists</h3>
-				<ul style="list-style-type: none; padding: 0;">
+				<ul>
 					{{range .Lists}}
-					<li style="margin: 5px 0;"><a href="/events/lists/{{.}}">{{.}}</a></li>
+					<li><a href="/events/lists/{{.}}">{{.}}</a></li>
 					{{end}}
 				</ul>
 			</div>

@@ -28,6 +28,6 @@ go.work.sum
 .env
 sb-dashboard
 .volume
-app
+/app
 main_linux
 data/
