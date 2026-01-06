@@ -3,14 +3,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "cmd/app/main.go",
+      "src": "api/index.go",
       "use": "@vercel/go"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "cmd/app/main.go"
+      "dest": "api/index.go"
     }
   ],
   "crons": [

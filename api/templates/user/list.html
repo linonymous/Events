@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="theme-color" content="#121212">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Events">
+        <link rel="manifest" href="/events/static/manifest.json">
+        <link rel="apple-touch-icon" href="/events/static/icon-192.svg">
+        <title>Events - {{.ListName}}</title>
+        <script src="https://unpkg.com/htmx.org@1.5.0"></script>
+        <style>
+            body {
+                background-color: #121212;
+                color: #ffffff;
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                /* justify-content: center; Removed to allow valid scrolling */
+                min-height: 100vh;
+                padding-top: 20px;
+                /* Add some spacing at top */
+            }
+
+            h1 {
+                margin-bottom: 20px;
+            }
+
+            table {
+                width: 80%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+            }
+
+            th,
+            td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #444444;
+            }
+
+            th {
+                background-color: #1f1f1f;
+            }
+
+            tr:nth-child(even) {
+                background-color: #1f1f1f;
+            }
+
+            tr:hover {
+                background-color: #333333;
+            }
+
+            a {
+                color: #1e90ff;
+                text-decoration: none;
+            }
+
+            a:hover {
+                text-decoration: underline;
+            }
+
+            .edit-button {
+                background-color: #1e90ff;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                cursor: pointer;
+            }
+
+            .edit-button:hover {
+                background-color: #1c86ee;
+            }
+
+            .delete-button {
+                background-color: #ff351e;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                cursor: pointer;
+            }
+
+            .delete-button:hover {
+                background-color: #ff1e1e;
+            }
+
+            .form-container {
+                margin-top: 20px;
+            }
+
+            .form-container input,
+            .form-container button {
+                padding: 10px;
+                margin: 5px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>Event List</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Days Since</th>
+                    <th>Years Since</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Events}}
+                <tr>
+                    <td>{{.Title}}</td>
+                    <td>{{.EventDateStr}}</td>
+                    <td>{{if .Recurring}}Yearly{{else}}Once{{end}}</td>
+                    <td>{{.AgeInDays}}</td>
+                    <td>{{.AgeInYears}}</td>
+                    <td>
+                        <button class="edit-button" hx-get="/events/lists/{{$.ListName}}/edit/{{.ID}}"
+                            hx-target="#edit-form">Edit</button>
+                        <button class="delete-button" hx-get="/events/lists/{{$.ListName}}/delete/{{.ID}}"
+                            hx-confirm="Are you sure you want to delete this event?"
+                            hx-target="#edit-form">Delete</button>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        <div class="form-container" id="edit-form">
+            <h2>Add/Edit Event</h2>
+            <form hx-post="/events/save" hx-swap="outerHTML">
+                <input type="hidden" id="event-id" name="id">
+                <input type="hidden" id="user-id" name="user_id" value="{{.UserID}}">
+                <input type="hidden" id="list-name" name="list_name" value="{{.ListName}}">
+                <input type="text" id="event-title" name="title" placeholder="Event Title" required>
+                <input type="date" id="event-date" name="event_date" required>
+                <select name="recurring" style="padding: 10px; margin: 5px;">
+                    <option value="true" selected>Yearly (birthday/anniversary)</option>
+                    <option value="false">One-time (appointment)</option>
+                </select>
+                <button type="submit">Save</button>
+            </form>
+            <div id="response"></div>
+        </div>
+        <a href="/events/">Back to Home</a>
+    </body>
+
+</html>
