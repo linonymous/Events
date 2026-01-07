@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-
-	"github.com/IAmSurajBobade/sb-dashboard/internal/models"
+	"github.com/IAmSurajBobade/events/internal/models"
 	_ "github.com/lib/pq"
 )
 

@@ -1,18 +1,6 @@
 services:
-  app:
-    build: .
-    ports:
-      - "8100:8100"
-    environment:
-      - DATABASE_URL=postgres://user:password@db:5432/events?sslmode=disable
-      - PORT=8100
-    # volumes:
-      # - .volume/app:/app
-    depends_on:
-      - db
-
   db:
-    image: postgres:18.1-alpine
+    image: postgres:15-alpine
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password

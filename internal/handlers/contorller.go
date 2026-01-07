@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/IAmSurajBobade/sb-dashboard/internal/models"
-	"github.com/IAmSurajBobade/sb-dashboard/internal/storage"
+	"github.com/IAmSurajBobade/events/internal/models"
+	"github.com/IAmSurajBobade/events/internal/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -63,7 +63,12 @@ func (c *Controller) ListHandler(content embed.FS) http.HandlerFunc {
 			"Events":   events,
 		}
 
-		tmpl, _ := template.ParseFS(content, "templates/user/list.html")
+		tmpl, err := template.ParseFS(content, "templates/user/list.html")
+		if err != nil {
+			log.Printf("Error parsing template: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 		tmpl.Execute(w, data)
 	}
 }
@@ -109,7 +114,12 @@ func (c *Controller) EditHandler(content embed.FS) http.HandlerFunc {
 			"ListName":     listName,
 		}
 
-		tmpl, _ := template.ParseFS(content, "templates/user/edit_event.html")
+		tmpl, err := template.ParseFS(content, "templates/user/edit_event.html")
+		if err != nil {
+			log.Printf("Error parsing template: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 		tmpl.Execute(w, data)
 	}
 }

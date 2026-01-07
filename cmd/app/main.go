@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/IAmSurajBobade/sb-dashboard/internal/handlers"
-	"github.com/IAmSurajBobade/sb-dashboard/internal/storage"
+	"github.com/IAmSurajBobade/events/internal/handlers"
+	"github.com/IAmSurajBobade/events/internal/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -108,4 +108,3 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-

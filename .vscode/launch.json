@@ -10,6 +10,11 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/app/main.go",
+            "env": {
+                "DATABASE_URL": "postgres://user:password@127.0.0.1:5432/events?sslmode=disable",
+                "PORT": "8100",
+                "TZ": "Asia/Kolkata"
+            }
         }
     ]
 }
