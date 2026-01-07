@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-//go:embed templates/*
+//go:embed templates/* static/*
 var content embed.FS
 
 func main() {
@@ -60,6 +60,9 @@ func main() {
 	})
 	muxRouter.Use(recoveryMiddleware)
 	// muxRouter.Use(loggingMiddleware)
+
+	// Serve static files
+	muxRouter.PathPrefix("/static/").Handler(http.FileServer(http.FS(content)))
 
 	eventsRouter := muxRouter.PathPrefix("/events").Subrouter()
 

@@ -49,11 +49,15 @@ func (c *Controller) ListHandler(content embed.FS) http.HandlerFunc {
 		currTime := c.now()
 
 		for i := range events {
+			events[i].EventDate = events[i].EventDate.In(c.location)
 			events[i].EventDateStr = events[i].EventDate.Format("02/Jan/2006")
-			// age in years
-			events[i].AgeInDays = int(currTime.Sub(events[i].EventDate).Hours() / 24)
-			y, m, d := diff(events[i].EventDate, currTime)
 
+			// Calculate age in calendar days
+			d1 := time.Date(events[i].EventDate.Year(), events[i].EventDate.Month(), events[i].EventDate.Day(), 0, 0, 0, 0, c.location)
+			d2 := time.Date(currTime.Year(), currTime.Month(), currTime.Day(), 0, 0, 0, 0, c.location)
+			events[i].AgeInDays = int(d2.Sub(d1).Hours() / 24)
+
+			y, m, d := diff(events[i].EventDate, currTime)
 			events[i].AgeInYears = setAgeInYears(y, m, d)
 		}
 
@@ -74,23 +78,32 @@ func (c *Controller) ListHandler(content embed.FS) http.HandlerFunc {
 }
 
 func setAgeInYears(y, m, d int) string {
-	age := ""
+	parts := []string{}
 	if y == 1 {
-		age = "1 year"
+		parts = append(parts, "1 year")
 	} else if y > 1 {
-		age = fmt.Sprintf("%d years", y)
+		parts = append(parts, fmt.Sprintf("%d years", y))
 	}
 	if m == 1 {
-		age = fmt.Sprintf("%s 1 month", age)
+		parts = append(parts, "1 month")
 	} else if m > 1 {
-		age = fmt.Sprintf("%s %d months", age, m)
+		parts = append(parts, fmt.Sprintf("%d months", m))
 	}
 	if d == 1 {
-		age = fmt.Sprintf("%s 1 day", age)
+		parts = append(parts, "1 day")
 	} else if d > 1 {
-		age = fmt.Sprintf("%s %d days", age, d)
+		parts = append(parts, fmt.Sprintf("%d days", d))
 	}
-	return age
+
+	if len(parts) == 0 {
+		return "0 days"
+	}
+
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result += " " + parts[i]
+	}
+	return result
 }
 
 func (c *Controller) EditHandler(content embed.FS) http.HandlerFunc {
@@ -109,7 +122,7 @@ func (c *Controller) EditHandler(content embed.FS) http.HandlerFunc {
 		data := map[string]interface{}{
 			"ID":           event.ID,
 			"Title":        event.Title,
-			"EventDateStr": event.EventDate.Format("2006-01-02"),
+			"EventDateStr": event.EventDate.In(c.location).Format("2006-01-02"),
 			"UserID":       userID,
 			"ListName":     listName,
 		}
@@ -212,10 +225,10 @@ func diff(a, b time.Time) (year, month, day int) {
 		day--
 	}
 	if day < 0 {
-		// days in month:
-		t := time.Date(y1, M1, 32, 0, 0, 0, 0, a.Location())
-		day += 32 - t.Day()
 		month--
+		// Get days in the month before b
+		t := time.Date(y2, M2, 0, 0, 0, 0, 0, b.Location())
+		day += t.Day()
 	}
 	if month < 0 {
 		month += 12
