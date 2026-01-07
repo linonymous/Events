@@ -66,7 +66,7 @@
 				}
 
 				if (Notification.permission === 'denied') {
-					statusEl.textContent = 'Notifications blocked';
+					statusEl.textContent = 'Notifications blocked in browser settings';
 					btnEl.style.display = 'none';
 					testBtn.style.display = 'none';
 					return;
@@ -76,13 +76,25 @@
 					const resp = await fetch('/events/api/push/status');
 					const data = await resp.json();
 
-					if (data.subscribed) {
+					// Also check if we have an active push subscription in the browser
+					const registration = await navigator.serviceWorker.ready;
+					const browserSubscription = await registration.pushManager.getSubscription();
+
+					if (data.subscribed && browserSubscription) {
 						statusEl.textContent = 'Notifications: ON';
 						statusEl.style.color = '#03dac6';
 						btnEl.textContent = 'Disable';
 						btnEl.onclick = disableNotifications;
 						btnEl.className = 'btn-small btn-danger';
 						testBtn.style.display = 'inline-block';
+					} else if (data.subscribed && !browserSubscription) {
+						// Server thinks we're subscribed but browser isn't - need to re-enable
+						statusEl.textContent = 'Notifications: Need Setup';
+						statusEl.style.color = '#ff9800';
+						btnEl.textContent = 'Enable';
+						btnEl.onclick = enableNotifications;
+						btnEl.className = 'btn-small btn-primary';
+						testBtn.style.display = 'none';
 					} else {
 						statusEl.textContent = 'Notifications: OFF';
 						statusEl.style.color = '#888';
@@ -154,9 +166,17 @@
 				try {
 					const resp = await fetch('/events/api/push/test', { method: 'POST' });
 					const data = await resp.json();
-					alert('Test sent! ' + data.sent + '/' + data.total + ' delivered');
+					if (data.sent > 0) {
+						let message = 'Test notification sent!';
+						if (isIOSSafari() || /iPad|iPhone|iPod/.test(navigator.userAgent)) {
+							message += '\n\nOn iOS, notifications only appear when the app is in the background. Minimize this app now to see it!';
+						}
+						alert(message);
+					} else {
+						alert('Failed to deliver notification. Try disabling and re-enabling notifications.');
+					}
 				} catch (err) {
-					alert('Failed to send test');
+					alert('Failed to send test: ' + err.message);
 				}
 			}
 
