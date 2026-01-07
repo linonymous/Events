@@ -50,15 +50,16 @@
 				const btnEl = document.getElementById('notification-btn');
 				const testBtn = document.getElementById('test-btn');
 
-				if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-					statusEl.textContent = 'Push notifications not supported';
+				// Check iOS Safari first - PushManager is only available as PWA on iOS
+				if (isIOSSafari() && !isPWA()) {
+					statusEl.innerHTML = '<a href="#" onclick="showSetupGuide()" style="color: #03dac6;">Add to Home Screen for notifications</a>';
 					btnEl.style.display = 'none';
 					testBtn.style.display = 'none';
 					return;
 				}
 
-				if (isIOSSafari() && !isPWA()) {
-					statusEl.innerHTML = '<a href="#" onclick="showSetupGuide()" style="color: #03dac6;">Add to Home Screen for notifications</a>';
+				if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+					statusEl.textContent = 'Push notifications not supported';
 					btnEl.style.display = 'none';
 					testBtn.style.display = 'none';
 					return;
