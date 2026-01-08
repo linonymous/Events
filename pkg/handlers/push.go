@@ -286,6 +286,20 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		subsByUser[sub.UserID] = append(subsByUser[sub.UserID], sub)
 	}
 
+	// Build subscription summary for debugging
+	subsSummary := make(map[string]interface{})
+	for userID, subs := range subsByUser {
+		userKey := fmt.Sprintf("user_%d", userID)
+		endpoints := make([]string, len(subs))
+		for i, s := range subs {
+			endpoints[i] = s.Endpoint[:min(60, len(s.Endpoint))] + "..."
+		}
+		subsSummary[userKey] = map[string]interface{}{
+			"count":     len(subs),
+			"endpoints": endpoints,
+		}
+	}
+
 	now := c.now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, c.location)
 
@@ -294,6 +308,18 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 	failed := 0
 	skippedNoSubs := 0
 	matched := 0
+
+	// Debug info for response
+	type sendDetail struct {
+		EventID    int    `json:"eventId"`
+		EventTitle string `json:"eventTitle"`
+		UserID     int    `json:"userId"`
+		Endpoint   string `json:"endpoint"`
+		Status     int    `json:"status"`
+		Error      string `json:"error,omitempty"`
+	}
+	var sendDetails []sendDetail
+	var matchedEvents []map[string]interface{}
 
 	log.Printf("[CRON] Starting notification check. Total events: %d, Total subscriptions: %d", len(events), len(allSubs))
 	log.Printf("[CRON] Today's date (user timezone): %s", today.Format("2006-01-02"))
@@ -322,6 +348,15 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		matched++
 		log.Printf("[CRON] Event matched for notification: ID=%d, Title=%s, TargetDate=%s, DaysUntil=%d, Recurring=%v",
 			event.ID, event.Title, targetDate.Format("2006-01-02"), daysUntil, event.Recurring)
+
+		matchedEvents = append(matchedEvents, map[string]interface{}{
+			"id":         event.ID,
+			"title":      event.Title,
+			"userId":     event.UserID,
+			"targetDate": targetDate.Format("2006-01-02"),
+			"daysUntil":  daysUntil,
+			"recurring":  event.Recurring,
+		})
 
 		userSubs := subsByUser[event.UserID]
 		if len(userSubs) == 0 {
@@ -391,18 +426,36 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 			if err != nil {
 				failed++
 				log.Printf("[CRON] Error sending notification for event %d: %v", event.ID, err)
+				detail := sendDetail{
+					EventID:    event.ID,
+					EventTitle: event.Title,
+					UserID:     event.UserID,
+					Endpoint:   sub.Endpoint[:min(60, len(sub.Endpoint))] + "...",
+					Status:     0,
+					Error:      err.Error(),
+				}
 				if resp != nil {
+					detail.Status = resp.StatusCode
 					log.Printf("[CRON] Push service response status: %d", resp.StatusCode)
 					if resp.StatusCode == 410 || resp.StatusCode == 404 {
 						log.Printf("[CRON] Removing invalid subscription (status %d)", resp.StatusCode)
 						c.Store.DeletePushSubscription(sub.Endpoint)
+						detail.Error = fmt.Sprintf("%s (subscription removed)", err.Error())
 					}
 				}
+				sendDetails = append(sendDetails, detail)
 				continue
 			}
 			defer resp.Body.Close()
 
 			log.Printf("[CRON] Push service accepted notification. Status: %d", resp.StatusCode)
+			sendDetails = append(sendDetails, sendDetail{
+				EventID:    event.ID,
+				EventTitle: event.Title,
+				UserID:     event.UserID,
+				Endpoint:   sub.Endpoint[:min(60, len(sub.Endpoint))] + "...",
+				Status:     resp.StatusCode,
+			})
 			sent++
 		}
 	}
@@ -420,6 +473,9 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		"date":           today.Format("2006-01-02"),
 		"totalEvents":    len(events),
 		"totalSubs":      len(allSubs),
+		"matchedEvents":  matchedEvents,
+		"sendDetails":    sendDetails,
+		"subscriptions":  subsSummary,
 	})
 }
 
