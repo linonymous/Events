@@ -110,11 +110,21 @@ func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("[TEST] Test notification requested for user %d", userID)
+
 	subs, err := c.Store.GetPushSubscriptionsByUser(userID)
-	if err != nil || len(subs) == 0 {
+	if err != nil {
+		log.Printf("[TEST] Error getting subscriptions: %v", err)
+		http.Error(w, "Error getting subscriptions", http.StatusInternalServerError)
+		return
+	}
+	if len(subs) == 0 {
+		log.Printf("[TEST] No subscriptions found for user %d", userID)
 		http.Error(w, "No subscriptions found", http.StatusNotFound)
 		return
 	}
+
+	log.Printf("[TEST] Found %d subscription(s) for user %d", len(subs), userID)
 
 	vapidPublicKey := os.Getenv("VAPID_PUBLIC_KEY")
 	vapidPrivateKey := os.Getenv("VAPID_PRIVATE_KEY")
@@ -132,6 +142,9 @@ func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	sent := 0
+	failed := 0
+	errors := []string{}
+
 	for _, sub := range subs {
 		subscription := &webpush.Subscription{
 			Endpoint: sub.Endpoint,
@@ -141,6 +154,8 @@ func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 
+		log.Printf("[TEST] Sending to endpoint: %s...", sub.Endpoint[:min(80, len(sub.Endpoint))])
+
 		resp, err := webpush.SendNotification(payload, subscription, &webpush.Options{
 			Subscriber:      vapidEmail,
 			VAPIDPublicKey:  vapidPublicKey,
@@ -149,21 +164,35 @@ func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if err != nil {
-			log.Printf("Error sending push notification: %v", err)
+			failed++
+			errMsg := fmt.Sprintf("Error: %v", err)
+			log.Printf("[TEST] %s", errMsg)
+			errors = append(errors, errMsg)
 			// If subscription is invalid, remove it
-			if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404) {
-				c.Store.DeletePushSubscription(sub.Endpoint)
+			if resp != nil {
+				log.Printf("[TEST] Push service response status: %d", resp.StatusCode)
+				if resp.StatusCode == 410 || resp.StatusCode == 404 {
+					log.Printf("[TEST] Removing invalid subscription (status %d)", resp.StatusCode)
+					c.Store.DeletePushSubscription(sub.Endpoint)
+					errors = append(errors, "Subscription was invalid and has been removed. Please re-enable notifications.")
+				}
 			}
 			continue
 		}
 		defer resp.Body.Close()
+
+		log.Printf("[TEST] Push service accepted notification. Status: %d", resp.StatusCode)
 		sent++
 	}
 
+	log.Printf("[TEST] Completed. Sent: %d, Failed: %d", sent, failed)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"sent":  sent,
-		"total": len(subs),
+		"sent":   sent,
+		"failed": failed,
+		"total":  len(subs),
+		"errors": errors,
 	})
 }
 
@@ -213,6 +242,12 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 
 	sent := 0
 	checked := 0
+	failed := 0
+	skippedNoSubs := 0
+	matched := 0
+
+	log.Printf("[CRON] Starting notification check. Total events: %d, Total subscriptions: %d", len(events), len(allSubs))
+	log.Printf("[CRON] Today's date (user timezone): %s", today.Format("2006-01-02"))
 
 	for _, event := range events {
 		checked++
@@ -235,10 +270,17 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 			continue
 		}
 
+		matched++
+		log.Printf("[CRON] Event matched for notification: ID=%d, Title=%s, TargetDate=%s, DaysUntil=%d, Recurring=%v",
+			event.ID, event.Title, targetDate.Format("2006-01-02"), daysUntil, event.Recurring)
+
 		userSubs := subsByUser[event.UserID]
 		if len(userSubs) == 0 {
+			skippedNoSubs++
+			log.Printf("[CRON] No subscriptions found for user %d (event: %s)", event.UserID, event.Title)
 			continue
 		}
+		log.Printf("[CRON] Found %d subscription(s) for user %d", len(userSubs), event.UserID)
 
 		var body string
 		if event.Recurring {
@@ -287,6 +329,9 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 				},
 			}
 
+			// Log subscription endpoint domain for debugging
+			log.Printf("[CRON] Sending to endpoint: %s...", sub.Endpoint[:min(80, len(sub.Endpoint))])
+
 			resp, err := webpush.SendNotification(payload, subscription, &webpush.Options{
 				Subscriber:      vapidEmail,
 				VAPIDPublicKey:  vapidPublicKey,
@@ -295,22 +340,37 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 			})
 
 			if err != nil {
-				log.Printf("Error sending notification for event %d: %v", event.ID, err)
-				if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404) {
-					c.Store.DeletePushSubscription(sub.Endpoint)
+				failed++
+				log.Printf("[CRON] Error sending notification for event %d: %v", event.ID, err)
+				if resp != nil {
+					log.Printf("[CRON] Push service response status: %d", resp.StatusCode)
+					if resp.StatusCode == 410 || resp.StatusCode == 404 {
+						log.Printf("[CRON] Removing invalid subscription (status %d)", resp.StatusCode)
+						c.Store.DeletePushSubscription(sub.Endpoint)
+					}
 				}
 				continue
 			}
 			defer resp.Body.Close()
+
+			log.Printf("[CRON] Push service accepted notification. Status: %d", resp.StatusCode)
 			sent++
 		}
 	}
 
+	log.Printf("[CRON] Completed. Checked: %d, Matched: %d, Sent: %d, Failed: %d, SkippedNoSubs: %d",
+		checked, matched, sent, failed, skippedNoSubs)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"checked": checked,
-		"sent":    sent,
-		"date":    today.Format("2006-01-02"),
+		"checked":        checked,
+		"matched":        matched,
+		"sent":           sent,
+		"failed":         failed,
+		"skippedNoSubs":  skippedNoSubs,
+		"date":           today.Format("2006-01-02"),
+		"totalEvents":    len(events),
+		"totalSubs":      len(allSubs),
 	})
 }
 
