@@ -90,6 +90,7 @@ func getRouter() *mux.Router {
 		// Public API routes (VAPID key, cron)
 		eventsRouter.HandleFunc("/api/vapid-key", ctrl.VAPIDPublicKeyHandler).Methods(http.MethodGet)
 		eventsRouter.HandleFunc("/api/cron/send-reminders", ctrl.SendRemindersHandler).Methods(http.MethodGet)
+		eventsRouter.HandleFunc("/api/push/clear", ctrl.ClearAllSubscriptionsHandler).Methods(http.MethodPost)
 
 		// Protected routes
 		protectedRouter := eventsRouter.NewRoute().Subrouter()
@@ -104,7 +105,6 @@ func getRouter() *mux.Router {
 		// Push notification API routes (protected)
 		protectedRouter.HandleFunc("/api/push/subscribe", ctrl.SubscribePushHandler).Methods(http.MethodPost)
 		protectedRouter.HandleFunc("/api/push/unsubscribe", ctrl.UnsubscribePushHandler).Methods(http.MethodPost)
-		protectedRouter.HandleFunc("/api/push/clear", ctrl.ClearAllSubscriptionsHandler).Methods(http.MethodPost)
 		protectedRouter.HandleFunc("/api/push/status", ctrl.GetPushStatusHandler).Methods(http.MethodGet)
 		protectedRouter.HandleFunc("/api/push/test", ctrl.TestPushHandler).Methods(http.MethodPost)
 	})
