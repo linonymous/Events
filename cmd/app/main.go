@@ -100,6 +100,7 @@ func main() {
 	// Push notification API routes (protected)
 	protectedRouter.HandleFunc("/api/push/subscribe", ctrl.SubscribePushHandler).Methods(http.MethodPost)
 	protectedRouter.HandleFunc("/api/push/unsubscribe", ctrl.UnsubscribePushHandler).Methods(http.MethodPost)
+	protectedRouter.HandleFunc("/api/push/clear", ctrl.ClearAllSubscriptionsHandler).Methods(http.MethodPost)
 	protectedRouter.HandleFunc("/api/push/status", ctrl.GetPushStatusHandler).Methods(http.MethodGet)
 	protectedRouter.HandleFunc("/api/push/test", ctrl.TestPushHandler).Methods(http.MethodPost)
 

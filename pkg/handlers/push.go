@@ -97,6 +97,35 @@ func (c *Controller) GetPushStatusHandler(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// ClearAllSubscriptionsHandler removes all push subscriptions for the current user
+func (c *Controller) ClearAllSubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := GetUserID(r)
+	if userID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	deleted, err := c.Store.DeleteAllPushSubscriptionsByUser(userID)
+	if err != nil {
+		log.Printf("Error clearing push subscriptions for user %d: %v", userID, err)
+		http.Error(w, "Failed to clear subscriptions", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[CLEAR] Cleared %d subscription(s) for user %d", deleted, userID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"deleted": deleted,
+		"status":  "cleared",
+	})
+}
+
 // TestPushHandler sends a test notification to the current user
 func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
