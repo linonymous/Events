@@ -230,6 +230,21 @@ func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
 
+		// Check for non-2xx status codes (push service rejected the notification)
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			failed++
+			errMsg := fmt.Sprintf("Push service rejected notification. Status: %d", resp.StatusCode)
+			log.Printf("[TEST] %s", errMsg)
+			errors = append(errors, errMsg)
+			// 403, 404, 410 indicate the subscription is invalid
+			if resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403 {
+				log.Printf("[TEST] Removing invalid subscription (status %d)", resp.StatusCode)
+				c.Store.DeletePushSubscription(sub.Endpoint)
+				errors = append(errors, "Subscription was invalid and has been removed. Please re-enable notifications.")
+			}
+			continue
+		}
+
 		log.Printf("[TEST] Push service accepted notification. Status: %d", resp.StatusCode)
 		sent++
 	}
@@ -401,6 +416,18 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 				continue
 			}
 			defer resp.Body.Close()
+
+			// Check for non-2xx status codes (push service rejected the notification)
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				failed++
+				log.Printf("[CRON] Push service rejected notification. Status: %d", resp.StatusCode)
+				// 403, 404, 410 indicate the subscription is invalid
+				if resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403 {
+					log.Printf("[CRON] Removing invalid subscription (status %d)", resp.StatusCode)
+					c.Store.DeletePushSubscription(sub.Endpoint)
+				}
+				continue
+			}
 
 			log.Printf("[CRON] Push service accepted notification. Status: %d", resp.StatusCode)
 			sent++
