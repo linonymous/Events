@@ -204,6 +204,14 @@ func (s *PostgresStorage) DeletePushSubscription(endpoint string) error {
 	return err
 }
 
+func (s *PostgresStorage) DeleteAllPushSubscriptionsByUser(userID int) (int64, error) {
+	result, err := s.db.Exec("DELETE FROM push_subscriptions WHERE user_id = $1", userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 func (s *PostgresStorage) GetPushSubscription(userID int, endpoint string) (*models.PushSubscription, error) {
 	var sub models.PushSubscription
 	err := s.db.QueryRow(`

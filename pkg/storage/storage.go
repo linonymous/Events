@@ -16,6 +16,7 @@ type Storage interface {
 	// Push subscription methods
 	SavePushSubscription(userID int, endpoint, p256dh, auth string) error
 	DeletePushSubscription(endpoint string) error
+	DeleteAllPushSubscriptionsByUser(userID int) (int64, error)
 	GetPushSubscription(userID int, endpoint string) (*models.PushSubscription, error)
 	GetPushSubscriptionsByUser(userID int) ([]models.PushSubscription, error)
 	GetAllPushSubscriptions() ([]models.PushSubscription, error)

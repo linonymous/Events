@@ -97,6 +97,55 @@ func (c *Controller) GetPushStatusHandler(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// ClearAllSubscriptionsHandler removes all push subscriptions for a user (requires CRON_SECRET)
+func (c *Controller) ClearAllSubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Verify cron secret
+	cronSecret := os.Getenv("CRON_SECRET")
+	if cronSecret == "" {
+		http.Error(w, "CRON_SECRET not configured", http.StatusInternalServerError)
+		return
+	}
+	auth := r.Header.Get("Authorization")
+	if auth != "Bearer "+cronSecret {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get user_id from query parameter
+	userIDStr := r.URL.Query().Get("user_id")
+	if userIDStr == "" {
+		http.Error(w, "user_id query parameter required", http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil || userID == 0 {
+		http.Error(w, "Invalid user_id", http.StatusBadRequest)
+		return
+	}
+
+	deleted, err := c.Store.DeleteAllPushSubscriptionsByUser(userID)
+	if err != nil {
+		log.Printf("Error clearing push subscriptions for user %d: %v", userID, err)
+		http.Error(w, "Failed to clear subscriptions", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[CLEAR] Cleared %d subscription(s) for user %d", deleted, userID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"deleted": deleted,
+		"user_id": userID,
+		"status":  "cleared",
+	})
+}
+
 // TestPushHandler sends a test notification to the current user
 func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
