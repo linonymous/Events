@@ -3,15 +3,31 @@ package handlers
 import (
 	"embed"
 	"html/template"
+	"log"
 	"net/http"
+	"os"
 
-
-	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var store = sessions.NewCookieStore(securecookie.GenerateRandomKey(32))
+var store *sessions.CookieStore
+
+func init() {
+	// Use SESSION_SECRET from environment for consistent sessions across serverless instances
+	sessionSecret := os.Getenv("SESSION_SECRET")
+	if sessionSecret == "" {
+		log.Println("WARNING: SESSION_SECRET not set, using fallback (sessions will not persist across restarts)")
+		sessionSecret = "fallback-secret-key-change-me-in-production"
+	}
+	store = sessions.NewCookieStore([]byte(sessionSecret))
+	store.Options = &sessions.Options{
+		Path:     "/events",
+		MaxAge:   86400 * 30, // 30 days
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
 
 func (c *Controller) LoginHandler(content embed.FS) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
