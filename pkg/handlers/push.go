@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/linonymous/Events/pkg/models"
+	"github.com/IAmSurajBobade/Events/pkg/models"
 	webpush "github.com/SherClockHolmes/webpush-go"
 )
 

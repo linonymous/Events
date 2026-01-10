@@ -1,4 +1,4 @@
-module github.com/linonymous/Events
+module github.com/IAmSurajBobade/Events
 
 go 1.24.0
 
