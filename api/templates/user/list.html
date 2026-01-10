@@ -153,6 +153,7 @@
                 <tr>
                     <th>Title</th>
                     <th>Date</th>
+                    <th>Mobile</th>
                     <th>Type</th>
                     <th>Days Since</th>
                     <th>Years Since</th>
@@ -164,6 +165,7 @@
                 <tr>
                     <td>{{.Title}}</td>
                     <td>{{.EventDateStr}}</td>
+                    <td>{{if .MobileNumber}}<a href="https://wa.me/{{.MobileNumber}}" target="_blank">{{.MobileNumber}}</a>{{else}}-{{end}}</td>
                     <td>{{if .Recurring}}Yearly{{else}}Once{{end}}</td>
                     <td>{{.AgeInDays}}</td>
                     <td>{{.AgeInYears}}</td>
@@ -186,6 +188,7 @@
                 <input type="hidden" id="list-name" name="list_name" value="{{.ListName}}">
                 <input type="text" id="event-title" name="title" placeholder="Event Title" required>
                 <input type="date" id="event-date" name="event_date" required>
+                <input type="tel" id="mobile-number" name="mobile_number" placeholder="Mobile (e.g., 919876543210)" pattern="[0-9]*">
                 <select name="recurring" style="padding: 10px; margin: 5px;">
                     <option value="true" selected>Yearly (birthday/anniversary)</option>
                     <option value="false">One-time (appointment)</option>
