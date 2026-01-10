@@ -35,6 +35,54 @@ A web application for tracking recurring events like birthdays and anniversaries
 
 *Required for push notification functionality
 
+### Generating Environment Variables
+
+**DATABASE_URL**
+
+- **Local Docker**: Use the connection string from your `docker-compose.yml`
+- **Supabase**: Go to Project Settings > Database > Connection string (use Transaction pooler)
+
+**SESSION_SECRET**
+
+Generate a secure random string (32+ characters):
+```bash
+# Using openssl
+openssl rand -base64 32
+
+# Using Python
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+**VAPID Keys (for Push Notifications)**
+
+Generate a VAPID key pair:
+```bash
+# Using Node.js
+npx web-push generate-vapid-keys
+```
+
+This outputs both `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. Set `VAPID_EMAIL` to your contact email prefixed with `mailto:`.
+
+Alternatively, use an online generator: [vapidkeys.com](https://vapidkeys.com)
+
+**CRON_SECRET**
+
+Generate a secure random string:
+```bash
+openssl rand -hex 32
+```
+
+### Running Locally
+
+Create a `.env` file with the variables above, then:
+```bash
+# Load env and run
+export $(cat .env | xargs) && go run cmd/app/main.go
+
+# Or with Docker Compose
+docker-compose up --build
+```
+
 ---
 
 ## Supabase Setup
