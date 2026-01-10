@@ -328,7 +328,9 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 			targetDate = getNextYearlyOccurrence(event.EventDate, today, c.location)
 		} else {
 			// For one-time events, use the actual event date
-			targetDate = time.Date(event.EventDate.Year(), event.EventDate.Month(), event.EventDate.Day(), 0, 0, 0, 0, c.location)
+			// Convert to user timezone first to get correct date components
+			eventDateLocal := event.EventDate.In(c.location)
+			targetDate = time.Date(eventDateLocal.Year(), eventDateLocal.Month(), eventDateLocal.Day(), 0, 0, 0, 0, c.location)
 		}
 
 		daysUntil = int(targetDate.Sub(today).Hours() / 24)
