@@ -3,6 +3,7 @@ package handlers
 import (
 	"embed"
 	"html/template"
+	"log"
 	"net/http"
 )
 
@@ -22,7 +23,12 @@ func (c *Controller) HomeHandler(content embed.FS) http.HandlerFunc {
 			"Lists":      lists,
 		}
 
-		tmpl, _ := template.ParseFS(content, "templates/home.html")
+		tmpl, err := template.ParseFS(content, "templates/home.html")
+		if err != nil {
+			log.Printf("Error parsing template: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 		tmpl.Execute(w, data)
 	}
 }
