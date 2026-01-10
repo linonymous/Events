@@ -2,19 +2,21 @@
 	"info": {
 		"_postman_id": "events-api-collection",
 		"name": "Events API",
-		"description": "API collection for Events application - Birthday/Anniversary tracker with push notifications",
+		"description": "API collection for Events application - Birthday/Anniversary tracker with push notifications.\n\n## Setup\n1. Go to collection Variables tab\n2. Update `baseUrl` to your deployment URL\n3. Update `cronSecret` to your CRON_SECRET value\n\nDefault baseUrl: https://events-iota-eight.vercel.app",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
 		{
 			"key": "baseUrl",
 			"value": "https://events-iota-eight.vercel.app",
-			"type": "string"
+			"type": "string",
+			"description": "Base URL of your Events deployment. Change this to your own URL."
 		},
 		{
 			"key": "cronSecret",
 			"value": "YOUR_CRON_SECRET",
-			"type": "string"
+			"type": "string",
+			"description": "CRON_SECRET environment variable value for admin endpoints."
 		}
 	],
 	"item": [
