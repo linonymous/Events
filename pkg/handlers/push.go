@@ -353,9 +353,11 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		var body string
 		if event.Recurring {
 			// Calculate age (years since original date) for recurring events
-			age := today.Year() - event.EventDate.Year()
-			if today.Month() < event.EventDate.Month() ||
-				(today.Month() == event.EventDate.Month() && today.Day() < event.EventDate.Day()) {
+			// Convert to user's timezone to get correct date components
+			eventDateLocal := event.EventDate.In(c.location)
+			age := today.Year() - eventDateLocal.Year()
+			if today.Month() < eventDateLocal.Month() ||
+				(today.Month() == eventDateLocal.Month() && today.Day() < eventDateLocal.Day()) {
 				age--
 			}
 
@@ -475,9 +477,12 @@ func (c *Controller) VAPIDPublicKeyHandler(w http.ResponseWriter, r *http.Reques
 // For example, if event is 21/04/1996 and today is 15/04/2024, returns 21/04/2024
 // If event is 21/04/1996 and today is 25/04/2024, returns 21/04/2025
 func getNextYearlyOccurrence(eventDate, today time.Time, loc *time.Location) time.Time {
+	// Convert eventDate to user's timezone to get correct month/day
+	eventDateLocal := eventDate.In(loc)
+
 	// Get the month and day of the original event
-	month := eventDate.Month()
-	day := eventDate.Day()
+	month := eventDateLocal.Month()
+	day := eventDateLocal.Day()
 
 	// Create this year's occurrence
 	thisYear := time.Date(today.Year(), month, day, 0, 0, 0, 0, loc)
