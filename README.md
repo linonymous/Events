@@ -37,19 +37,12 @@ A web application for tracking recurring events like birthdays and anniversaries
 
 ### Generating Environment Variables
 
-**1. DATABASE_URL**
+**DATABASE_URL**
 
-For local development with Docker:
-```bash
-DATABASE_URL="postgres://user:password@localhost:5432/events?sslmode=disable"
-```
+- **Local Docker**: Use the connection string from your `docker-compose.yml`
+- **Supabase**: Go to Project Settings > Database > Connection string (use Transaction pooler)
 
-For Supabase (get from Project Settings > Database > Connection string):
-```bash
-DATABASE_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?sslmode=require"
-```
-
-**2. SESSION_SECRET**
+**SESSION_SECRET**
 
 Generate a secure random string (32+ characters):
 ```bash
@@ -58,68 +51,35 @@ openssl rand -base64 32
 
 # Using Python
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-
-# Example output
-SESSION_SECRET="K7gNv2xLmP9qRsTuVwXyZ1a3b5c7d9e0f2g4h6j8"
 ```
 
-**3. VAPID Keys (for Push Notifications)**
+**VAPID Keys (for Push Notifications)**
 
-Generate VAPID key pair using Node.js:
+Generate a VAPID key pair:
 ```bash
+# Using Node.js
 npx web-push generate-vapid-keys
 ```
 
-Example output:
-```
-Public Key:  BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U
-Private Key: UUxI4O8-FbRouADVXBXFuR7rYTxMYYaLJGhxGTkWcqc
-```
+This outputs both `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. Set `VAPID_EMAIL` to your contact email prefixed with `mailto:`.
 
-Then set:
+Alternatively, use an online generator: [vapidkeys.com](https://vapidkeys.com)
+
+**CRON_SECRET**
+
+Generate a secure random string:
 ```bash
-VAPID_PUBLIC_KEY="BEl62iUYgUivxIkv69yViEuiBIa..."
-VAPID_PRIVATE_KEY="UUxI4O8-FbRouADVXBXFuR7rYTxMYYaLJGhxGTkWcqc"
-VAPID_EMAIL="mailto:your@email.com"
-```
-
-Or use an online generator: [vapidkeys.com](https://vapidkeys.com)
-
-**4. CRON_SECRET**
-
-Generate a secure random string for cron authentication:
-```bash
-# Using openssl
 openssl rand -hex 32
-
-# Example output
-CRON_SECRET="a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
 ```
 
-### Quick Start Example
+### Running Locally
 
-Create a `.env` file in the project root:
-```bash
-# Required
-DATABASE_URL="postgres://user:password@localhost:5432/events?sslmode=disable"
-SESSION_SECRET="your-32-char-secret-here-minimum"
-
-# Required for push notifications
-VAPID_PUBLIC_KEY="your-vapid-public-key"
-VAPID_PRIVATE_KEY="your-vapid-private-key"
-VAPID_EMAIL="mailto:you@example.com"
-CRON_SECRET="your-cron-secret"
-
-# Optional
-PORT=8100
-```
-
-Run locally:
+Create a `.env` file with the variables above, then:
 ```bash
 # Load env and run
-source .env && go run cmd/app/main.go
+export $(cat .env | xargs) && go run cmd/app/main.go
 
-# Or with Docker Compose (uses docker-compose.yml defaults)
+# Or with Docker Compose
 docker-compose up --build
 ```
 
