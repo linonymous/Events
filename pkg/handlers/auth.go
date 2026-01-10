@@ -32,7 +32,12 @@ func init() {
 func (c *Controller) LoginHandler(content embed.FS) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			tmpl, _ := template.ParseFS(content, "templates/login.html")
+			tmpl, err := template.ParseFS(content, "templates/login.html")
+			if err != nil {
+				log.Printf("Error parsing template: %v", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
 			tmpl.Execute(w, nil)
 			return
 		}
@@ -64,7 +69,12 @@ func (c *Controller) LoginHandler(content embed.FS) http.HandlerFunc {
 func (c *Controller) RegisterHandler(content embed.FS) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			tmpl, _ := template.ParseFS(content, "templates/register.html")
+			tmpl, err := template.ParseFS(content, "templates/register.html")
+			if err != nil {
+				log.Printf("Error parsing template: %v", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
 			tmpl.Execute(w, nil)
 			return
 		}
@@ -110,9 +120,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 }
 
 func GetUserID(r *http.Request) int {
-    session, _ := store.Get(r, "session-name")
-    if userID, ok := session.Values["user_id"].(int); ok {
-        return userID
-    }
-    return 0
+	session, _ := store.Get(r, "session-name")
+	if userID, ok := session.Values["user_id"].(int); ok {
+		return userID
+	}
+	return 0
 }
