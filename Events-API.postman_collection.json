@@ -1,0 +1,385 @@
+{
+	"info": {
+		"_postman_id": "events-api-collection",
+		"name": "Events API",
+		"description": "API collection for Events application - Birthday/Anniversary tracker with push notifications",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://events-iota-eight.vercel.app",
+			"type": "string"
+		},
+		{
+			"key": "cronSecret",
+			"value": "YOUR_CRON_SECRET",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "testuser",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "testpass",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "register"]
+						},
+						"description": "Register a new user account"
+					}
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "testuser",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "testpass",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "login"]
+						},
+						"description": "Login and get session cookie"
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "logout"]
+						},
+						"description": "Logout and clear session"
+					}
+				}
+			]
+		},
+		{
+			"name": "Events",
+			"item": [
+				{
+					"name": "Get Home Page",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", ""]
+						},
+						"description": "Get the home page with all event lists"
+					}
+				},
+				{
+					"name": "Get Event List",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/lists/birthdays",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "lists", "birthdays"]
+						},
+						"description": "Get events in a specific list (e.g., birthdays, anniversaries)"
+					}
+				},
+				{
+					"name": "Get Edit Event Page",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/lists/birthdays/edit/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "lists", "birthdays", "edit", "1"]
+						},
+						"description": "Get the edit form for an event"
+					}
+				},
+				{
+					"name": "Create Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "title",
+									"value": "John Birthday",
+									"type": "text"
+								},
+								{
+									"key": "event_date",
+									"value": "1990-05-15",
+									"type": "text",
+									"description": "Format: YYYY-MM-DD"
+								},
+								{
+									"key": "recurring",
+									"value": "true",
+									"type": "text",
+									"description": "true for yearly recurring, false for one-time"
+								},
+								{
+									"key": "list_name",
+									"value": "birthdays",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/save",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "save"]
+						},
+						"description": "Create a new event"
+					}
+				},
+				{
+					"name": "Update Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "id",
+									"value": "1",
+									"type": "text",
+									"description": "Event ID to update"
+								},
+								{
+									"key": "title",
+									"value": "John Birthday Updated",
+									"type": "text"
+								},
+								{
+									"key": "event_date",
+									"value": "1990-05-15",
+									"type": "text"
+								},
+								{
+									"key": "recurring",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "list_name",
+									"value": "birthdays",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/save",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "save"]
+						},
+						"description": "Update an existing event"
+					}
+				},
+				{
+					"name": "Delete Event",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/lists/birthdays/delete/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "lists", "birthdays", "delete", "1"]
+						},
+						"description": "Delete an event by ID"
+					}
+				}
+			]
+		},
+		{
+			"name": "Push Notifications",
+			"item": [
+				{
+					"name": "Get VAPID Public Key",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/api/vapid-key",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "api", "vapid-key"]
+						},
+						"description": "Get the VAPID public key for push subscription"
+					}
+				},
+				{
+					"name": "Get Push Status",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/api/push/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "api", "push", "status"]
+						},
+						"description": "Check if current user has push notifications enabled"
+					}
+				},
+				{
+					"name": "Subscribe to Push",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"endpoint\": \"https://fcm.googleapis.com/fcm/send/xxx\",\n    \"keys\": {\n        \"p256dh\": \"your-p256dh-key\",\n        \"auth\": \"your-auth-key\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/api/push/subscribe",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "api", "push", "subscribe"]
+						},
+						"description": "Subscribe to push notifications with Web Push subscription object"
+					}
+				},
+				{
+					"name": "Unsubscribe from Push",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"endpoint\": \"https://fcm.googleapis.com/fcm/send/xxx\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events/api/push/unsubscribe",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "api", "push", "unsubscribe"]
+						},
+						"description": "Unsubscribe from push notifications"
+					}
+				},
+				{
+					"name": "Test Push Notification",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/events/api/push/test",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "api", "push", "test"]
+						},
+						"description": "Send a test push notification to current user"
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin / Cron",
+			"item": [
+				{
+					"name": "Send Reminders (Cron)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{cronSecret}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/events/api/cron/send-reminders",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "api", "cron", "send-reminders"]
+						},
+						"description": "Trigger the cron job to send event reminders. Requires CRON_SECRET."
+					}
+				},
+				{
+					"name": "Clear All Subscriptions",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{cronSecret}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/events/api/push/clear?user_id=1",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "api", "push", "clear"],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1",
+									"description": "User ID to clear subscriptions for"
+								}
+							]
+						},
+						"description": "Clear all push subscriptions for a user. Requires CRON_SECRET."
+					}
+				}
+			]
+		}
+	]
+}
