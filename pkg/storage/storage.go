@@ -23,4 +23,8 @@ type Storage interface {
 
 	// Events for notifications
 	GetAllEventsForNotifications() ([]models.EventWithUser, error)
+	GetEventsForNotificationDates(todayMonth, todayDay, tomorrowMonth, tomorrowDay int, today, tomorrow string) ([]models.EventWithUser, error)
+
+	// Subscription count for early exit optimization
+	GetPushSubscriptionCount() (int, error)
 }
