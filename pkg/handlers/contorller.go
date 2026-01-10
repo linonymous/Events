@@ -49,7 +49,7 @@ func (c *Controller) ListHandler(content embed.FS) http.HandlerFunc {
 		currTime := c.now()
 
 		for i := range events {
-			events[i].EventDateStr = events[i].EventDate.Format("02/Jan/2006")
+			events[i].EventDateStr = events[i].EventDate.In(c.location).Format("02/Jan/2006")
 			// age in years
 			events[i].AgeInDays = int(currTime.Sub(events[i].EventDate).Hours() / 24)
 			y, m, d := diff(events[i].EventDate, currTime)
@@ -104,7 +104,7 @@ func (c *Controller) EditHandler(content embed.FS) http.HandlerFunc {
 		data := map[string]interface{}{
 			"ID":           event.ID,
 			"Title":        event.Title,
-			"EventDateStr": event.EventDate.Format("2006-01-02"),
+			"EventDateStr": event.EventDate.In(c.location).Format("2006-01-02"),
 			"Recurring":    event.Recurring,
 			"UserID":       userID,
 			"ListName":     listName,
