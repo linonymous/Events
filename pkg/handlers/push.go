@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -230,6 +231,24 @@ func (c *Controller) TestPushHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
 
+		// Check for non-2xx status codes (push service rejected the notification)
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			failed++
+			// Read response body for debugging
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			errMsg := fmt.Sprintf("Push service rejected notification. Status: %d, Body: %s", resp.StatusCode, string(bodyBytes))
+			log.Printf("[TEST] %s", errMsg)
+			errors = append(errors, errMsg)
+			// 404, 410 indicate the subscription is invalid and should be removed
+			// 403 may indicate auth issues on our end, so don't delete the subscription
+			if resp.StatusCode == 410 || resp.StatusCode == 404 {
+				log.Printf("[TEST] Removing invalid subscription (status %d)", resp.StatusCode)
+				c.Store.DeletePushSubscription(sub.Endpoint)
+				errors = append(errors, "Subscription was invalid and has been removed. Please re-enable notifications.")
+			}
+			continue
+		}
+
 		log.Printf("[TEST] Push service accepted notification. Status: %d", resp.StatusCode)
 		sent++
 	}
@@ -401,6 +420,21 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 				continue
 			}
 			defer resp.Body.Close()
+
+			// Check for non-2xx status codes (push service rejected the notification)
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				failed++
+				// Read response body for debugging
+				bodyBytes, _ := io.ReadAll(resp.Body)
+				log.Printf("[CRON] Push service rejected notification. Status: %d, Body: %s", resp.StatusCode, string(bodyBytes))
+				// 404, 410 indicate the subscription is invalid and should be removed
+				// 403 may indicate auth issues on our end, so don't delete the subscription
+				if resp.StatusCode == 410 || resp.StatusCode == 404 {
+					log.Printf("[CRON] Removing invalid subscription (status %d)", resp.StatusCode)
+					c.Store.DeletePushSubscription(sub.Endpoint)
+				}
+				continue
+			}
 
 			log.Printf("[CRON] Push service accepted notification. Status: %d", resp.StatusCode)
 			sent++
