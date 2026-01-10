@@ -385,10 +385,16 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 			}
 		}
 
+		// Use WhatsApp link if mobile number is present, otherwise use app link
+		notificationURL := "/events/lists/" + event.ListName
+		if event.MobileNumber != "" {
+			notificationURL = "https://wa.me/" + event.MobileNumber
+		}
+
 		payload, _ := json.Marshal(map[string]string{
 			"title": "Event Reminder",
 			"body":  body,
-			"url":   "/events/lists/" + event.ListName,
+			"url":   notificationURL,
 			"tag":   fmt.Sprintf("event-%d", event.ID),
 		})
 

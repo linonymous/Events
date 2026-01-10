@@ -88,6 +88,13 @@ func (s *PostgresStorage) CreateTables() error {
 				ALTER TABLE events ADD COLUMN recurring BOOLEAN DEFAULT true;
 			END IF;
 		END $$`,
+		// Migration: Add mobile_number column if it doesn't exist
+		`DO $$
+		BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='mobile_number') THEN
+				ALTER TABLE events ADD COLUMN mobile_number TEXT;
+			END IF;
+		END $$`,
 		`CREATE TABLE IF NOT EXISTS push_subscriptions (
 			id SERIAL PRIMARY KEY,
 			user_id INT REFERENCES users(id) ON DELETE CASCADE,
@@ -122,15 +129,23 @@ func (s *PostgresStorage) GetUser(username string) (*models.User, error) {
 }
 
 func (s *PostgresStorage) SaveEvent(userID int, listName string, event *models.Event) error {
-	err := s.db.QueryRow("INSERT INTO events (user_id, list_name, title, event_date, recurring) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-		userID, listName, event.Title, event.EventDate, event.Recurring).Scan(&event.ID)
+	err := s.db.QueryRow("INSERT INTO events (user_id, list_name, title, event_date, recurring, mobile_number) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+		userID, listName, event.Title, event.EventDate, event.Recurring, nullString(event.MobileNumber)).Scan(&event.ID)
 	return err
 }
 
 func (s *PostgresStorage) UpdateEvent(userID int, event *models.Event) error {
-	_, err := s.db.Exec("UPDATE events SET title = $1, event_date = $2, recurring = $3 WHERE id = $4 AND user_id = $5",
-		event.Title, event.EventDate, event.Recurring, event.ID, userID)
+	_, err := s.db.Exec("UPDATE events SET title = $1, event_date = $2, recurring = $3, mobile_number = $4 WHERE id = $5 AND user_id = $6",
+		event.Title, event.EventDate, event.Recurring, nullString(event.MobileNumber), event.ID, userID)
 	return err
+}
+
+// nullString converts empty string to sql.NullString for nullable columns
+func nullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
 }
 
 func (s *PostgresStorage) DeleteEvent(userID int, eventID int) error {
@@ -139,7 +154,7 @@ func (s *PostgresStorage) DeleteEvent(userID int, eventID int) error {
 }
 
 func (s *PostgresStorage) GetEvents(userID int, listName string) ([]models.Event, error) {
-	rows, err := s.db.Query("SELECT id, title, event_date, COALESCE(recurring, true) FROM events WHERE user_id = $1 AND list_name = $2 ORDER BY event_date ASC", userID, listName)
+	rows, err := s.db.Query("SELECT id, title, event_date, COALESCE(recurring, true), COALESCE(mobile_number, '') FROM events WHERE user_id = $1 AND list_name = $2 ORDER BY event_date ASC", userID, listName)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +163,7 @@ func (s *PostgresStorage) GetEvents(userID int, listName string) ([]models.Event
 	var events []models.Event
 	for rows.Next() {
 		var e models.Event
-		if err := rows.Scan(&e.ID, &e.Title, &e.EventDate, &e.Recurring); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.EventDate, &e.Recurring, &e.MobileNumber); err != nil {
 			return nil, err
 		}
 		events = append(events, e)
@@ -158,8 +173,8 @@ func (s *PostgresStorage) GetEvents(userID int, listName string) ([]models.Event
 
 func (s *PostgresStorage) GetEventByID(eventID int, userID int) (*models.Event, error) {
 	var e models.Event
-	err := s.db.QueryRow("SELECT id, title, event_date, COALESCE(recurring, true) FROM events WHERE id = $1 AND user_id = $2", eventID, userID).
-		Scan(&e.ID, &e.Title, &e.EventDate, &e.Recurring)
+	err := s.db.QueryRow("SELECT id, title, event_date, COALESCE(recurring, true), COALESCE(mobile_number, '') FROM events WHERE id = $1 AND user_id = $2", eventID, userID).
+		Scan(&e.ID, &e.Title, &e.EventDate, &e.Recurring, &e.MobileNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +285,7 @@ func (s *PostgresStorage) GetAllPushSubscriptions() ([]models.PushSubscription, 
 
 func (s *PostgresStorage) GetAllEventsForNotifications() ([]models.EventWithUser, error) {
 	rows, err := s.db.Query(`
-		SELECT id, user_id, list_name, title, event_date, COALESCE(recurring, true)
+		SELECT id, user_id, list_name, title, event_date, COALESCE(recurring, true), COALESCE(mobile_number, '')
 		FROM events
 		ORDER BY event_date ASC
 	`)
@@ -282,7 +297,7 @@ func (s *PostgresStorage) GetAllEventsForNotifications() ([]models.EventWithUser
 	var events []models.EventWithUser
 	for rows.Next() {
 		var e models.EventWithUser
-		if err := rows.Scan(&e.ID, &e.UserID, &e.ListName, &e.Title, &e.EventDate, &e.Recurring); err != nil {
+		if err := rows.Scan(&e.ID, &e.UserID, &e.ListName, &e.Title, &e.EventDate, &e.Recurring, &e.MobileNumber); err != nil {
 			return nil, err
 		}
 		events = append(events, e)
