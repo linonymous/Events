@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/IAmSurajBobade/Events/pkg/models"
@@ -422,7 +423,9 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		// Use WhatsApp link if mobile number is present, otherwise use app link
 		notificationURL := "/events/lists/" + event.ListName
 		if event.MobileNumber != "" {
-			notificationURL = "https://wa.me/" + event.MobileNumber
+			// Strip the + prefix if present (wa.me expects number without +)
+			mobileNum := strings.TrimPrefix(event.MobileNumber, "+")
+			notificationURL = "https://wa.me/" + mobileNum
 		}
 
 		payload, _ := json.Marshal(map[string]string{
