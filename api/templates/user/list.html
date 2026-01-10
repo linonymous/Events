@@ -99,6 +99,50 @@
                 padding: 10px;
                 margin: 5px;
             }
+
+            /* Mobile responsive styles */
+            @media (max-width: 768px) {
+                table {
+                    width: 95%;
+                    font-size: 14px;
+                }
+
+                th, td {
+                    padding: 8px 4px;
+                }
+
+                .form-container {
+                    width: 90%;
+                    padding: 10px;
+                }
+
+                .form-container form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+
+                .form-container input,
+                .form-container select,
+                .form-container button {
+                    width: 100%;
+                    padding: 12px;
+                    margin: 0;
+                    box-sizing: border-box;
+                    font-size: 16px; /* Prevents zoom on iOS */
+                }
+
+                .form-container input[type="date"] {
+                    min-height: 44px; /* Apple's recommended touch target */
+                    -webkit-appearance: none;
+                    appearance: none;
+                }
+
+                .edit-button, .delete-button {
+                    padding: 8px 12px;
+                    font-size: 12px;
+                }
+            }
         </style>
     </head>
 
