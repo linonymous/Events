@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/linonymous/Events/pkg/models"
+	"github.com/IAmSurajBobade/Events/pkg/models"
 	_ "github.com/lib/pq"
 )
 

@@ -1,6 +1,6 @@
 package storage
 
-import "github.com/linonymous/Events/pkg/models"
+import "github.com/IAmSurajBobade/Events/pkg/models"
 
 type Storage interface {
 	CreateTables() error

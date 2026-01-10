@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/linonymous/Events/pkg/handlers"
-	"github.com/linonymous/Events/pkg/storage"
+	"github.com/IAmSurajBobade/Events/pkg/handlers"
+	"github.com/IAmSurajBobade/Events/pkg/storage"
 	"github.com/gorilla/mux"
 )
 
