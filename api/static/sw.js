@@ -58,13 +58,29 @@ self.addEventListener('notificationclick', (event) => {
 
   const urlToOpen = event.notification.data?.url || '/events/';
 
+  // Check if this is an external URL (like WhatsApp)
+  const isExternalUrl = urlToOpen.startsWith('http://') || urlToOpen.startsWith('https://');
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // For external URLs (like WhatsApp), always open in a new window
+      if (isExternalUrl) {
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+        return;
+      }
+
+      // For internal URLs, try to focus and navigate an existing window
       for (const client of clientList) {
         if (client.url.includes('/events') && 'focus' in client) {
+          // Navigate to the URL and focus
+          client.navigate(urlToOpen);
           return client.focus();
         }
       }
+
+      // No existing window, open a new one
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
