@@ -109,13 +109,13 @@ The `vercel.json` includes a cron job for sending daily reminders:
   "crons": [
     {
       "path": "/events/api/cron/send-reminders",
-      "schedule": "0 9 * * *"
+      "schedule": "30 0 * * *"
     }
   ]
 }
 ```
 
-This runs daily at 9:00 AM UTC. Adjust the schedule as needed.
+This runs daily at **00:30 UTC (6:00 AM IST)**. Adjust the schedule as needed.
 
 **Important**: Vercel Cron requires the `CRON_SECRET` to be set. The cron request must include the header:
 ```
@@ -232,6 +232,58 @@ Events/
 | POST | `/events/api/push/unsubscribe` | Unsubscribe from push |
 | GET | `/events/api/push/status` | Get push subscription status |
 | POST | `/events/api/push/test` | Send test notification |
+
+---
+
+## Known Limitations
+
+### Timezone
+
+| Limitation | Details |
+|------------|---------|
+| **Hardcoded timezone** | The application uses `Asia/Kolkata` (IST, UTC+5:30) timezone exclusively |
+| **No per-user timezone** | All users share the same timezone setting |
+| **Fixed notification time** | Cron runs at 6:00 AM IST for all users |
+| **Database queries** | SQL date comparisons use hardcoded `AT TIME ZONE 'Asia/Kolkata'` |
+
+**Files affected:**
+- `api/index.go` - `time.LoadLocation("Asia/Kolkata")`
+- `cmd/app/main.go` - `time.LoadLocation("Asia/Kolkata")`
+- `pkg/storage/postgres.go` - SQL queries with `AT TIME ZONE 'Asia/Kolkata'`
+
+### Authentication
+
+| Limitation | Details |
+|------------|---------|
+| **Basic auth only** | Username/password authentication only |
+| **No OAuth** | No Google, GitHub, or social login support |
+| **No password reset** | Users cannot reset forgotten passwords |
+| **No email verification** | Accounts are active immediately upon registration |
+
+### Push Notifications
+
+| Limitation | Details |
+|------------|---------|
+| **HTTPS required** | Push notifications only work over HTTPS (browser requirement) |
+| **Browser support** | Requires browsers with Web Push API and Service Worker support |
+| **No email fallback** | Only push notifications, no email reminders |
+| **Reminder window** | Only notifies for events happening today or tomorrow (no advance reminders like 1 week before) |
+
+### Database
+
+| Limitation | Details |
+|------------|---------|
+| **PostgreSQL only** | No support for SQLite, MySQL, or other databases |
+| **No migrations** | Schema changes require manual intervention |
+
+### General
+
+| Limitation | Details |
+|------------|---------|
+| **No data export** | Cannot export events to CSV/iCal |
+| **No calendar sync** | No Google Calendar or iCal integration |
+| **No recurring patterns** | Only yearly recurring events (birthdays/anniversaries), no weekly/monthly patterns |
+| **Single list type** | Events are organized by simple text-based lists |
 
 ---
 

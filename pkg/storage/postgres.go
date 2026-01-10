@@ -304,3 +304,50 @@ func (s *PostgresStorage) GetAllEventsForNotifications() ([]models.EventWithUser
 	}
 	return events, nil
 }
+
+// GetEventsForNotificationDates returns only events occurring on today or tomorrow
+// For recurring events: matches month and day
+// For non-recurring events: matches exact date
+func (s *PostgresStorage) GetEventsForNotificationDates(todayMonth, todayDay, tomorrowMonth, tomorrowDay int, today, tomorrow string) ([]models.EventWithUser, error) {
+	rows, err := s.db.Query(`
+		SELECT id, user_id, list_name, title, event_date, COALESCE(recurring, true), COALESCE(mobile_number, '')
+		FROM events
+		WHERE
+			-- Recurring events: match month and day (in Asia/Kolkata timezone)
+			(COALESCE(recurring, true) = true AND (
+				(EXTRACT(MONTH FROM event_date AT TIME ZONE 'Asia/Kolkata') = $1
+				 AND EXTRACT(DAY FROM event_date AT TIME ZONE 'Asia/Kolkata') = $2)
+				OR
+				(EXTRACT(MONTH FROM event_date AT TIME ZONE 'Asia/Kolkata') = $3
+				 AND EXTRACT(DAY FROM event_date AT TIME ZONE 'Asia/Kolkata') = $4)
+			))
+			OR
+			-- Non-recurring events: match exact date
+			(recurring = false AND (
+				DATE(event_date AT TIME ZONE 'Asia/Kolkata') = $5::date
+				OR DATE(event_date AT TIME ZONE 'Asia/Kolkata') = $6::date
+			))
+		ORDER BY event_date ASC
+	`, todayMonth, todayDay, tomorrowMonth, tomorrowDay, today, tomorrow)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []models.EventWithUser
+	for rows.Next() {
+		var e models.EventWithUser
+		if err := rows.Scan(&e.ID, &e.UserID, &e.ListName, &e.Title, &e.EventDate, &e.Recurring, &e.MobileNumber); err != nil {
+			return nil, err
+		}
+		events = append(events, e)
+	}
+	return events, nil
+}
+
+// GetPushSubscriptionCount returns the total number of push subscriptions
+func (s *PostgresStorage) GetPushSubscriptionCount() (int, error) {
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM push_subscriptions").Scan(&count)
+	return count, err
+}

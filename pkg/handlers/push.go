@@ -276,6 +276,29 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	now := c.now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, c.location)
+	tomorrow := today.AddDate(0, 0, 1)
+
+	// OPTIMIZATION B: Early exit if no subscriptions exist
+	subCount, err := c.Store.GetPushSubscriptionCount()
+	if err != nil {
+		log.Printf("[CRON] Error checking subscription count: %v", err)
+		http.Error(w, "Failed to check subscriptions", http.StatusInternalServerError)
+		return
+	}
+	if subCount == 0 {
+		log.Printf("[CRON] No push subscriptions found. Skipping notification check.")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"skipped":   true,
+			"reason":    "no_subscriptions",
+			"date":      today.Format("2006-01-02"),
+			"totalSubs": 0,
+		})
+		return
+	}
+
 	vapidPublicKey := os.Getenv("VAPID_PUBLIC_KEY")
 	vapidPrivateKey := os.Getenv("VAPID_PRIVATE_KEY")
 	vapidEmail := os.Getenv("VAPID_EMAIL")
@@ -285,10 +308,29 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	events, err := c.Store.GetAllEventsForNotifications()
+	// OPTIMIZATION A: Only fetch events for today/tomorrow from the database
+	events, err := c.Store.GetEventsForNotificationDates(
+		int(today.Month()), today.Day(),
+		int(tomorrow.Month()), tomorrow.Day(),
+		today.Format("2006-01-02"), tomorrow.Format("2006-01-02"),
+	)
 	if err != nil {
 		log.Printf("Error getting events: %v", err)
 		http.Error(w, "Failed to get events", http.StatusInternalServerError)
+		return
+	}
+
+	// Early exit if no events match today/tomorrow
+	if len(events) == 0 {
+		log.Printf("[CRON] No events found for today (%s) or tomorrow (%s). Skipping.",
+			today.Format("2006-01-02"), tomorrow.Format("2006-01-02"))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"skipped":   true,
+			"reason":    "no_events_today_tomorrow",
+			"date":      today.Format("2006-01-02"),
+			"totalSubs": subCount,
+		})
 		return
 	}
 
@@ -305,21 +347,19 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 		subsByUser[sub.UserID] = append(subsByUser[sub.UserID], sub)
 	}
 
-	now := c.now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, c.location)
-
 	sent := 0
 	checked := 0
 	failed := 0
 	skippedNoSubs := 0
 	matched := 0
 
-	log.Printf("[CRON] Starting notification check. Total events: %d, Total subscriptions: %d", len(events), len(allSubs))
+	log.Printf("[CRON] Starting notification check. Matched events: %d, Total subscriptions: %d", len(events), len(allSubs))
 	log.Printf("[CRON] Today's date (user timezone): %s", today.Format("2006-01-02"))
 
 	for _, event := range events {
 		checked++
 
+		// Calculate daysUntil for message generation
 		var targetDate time.Time
 		var daysUntil int
 
@@ -328,17 +368,11 @@ func (c *Controller) SendRemindersHandler(w http.ResponseWriter, r *http.Request
 			targetDate = getNextYearlyOccurrence(event.EventDate, today, c.location)
 		} else {
 			// For one-time events, use the actual event date
-			// Convert to user timezone first to get correct date components
 			eventDateLocal := event.EventDate.In(c.location)
 			targetDate = time.Date(eventDateLocal.Year(), eventDateLocal.Month(), eventDateLocal.Day(), 0, 0, 0, 0, c.location)
 		}
 
 		daysUntil = int(targetDate.Sub(today).Hours() / 24)
-
-		// Notify if event is today or tomorrow
-		if daysUntil < 0 || daysUntil > 1 {
-			continue
-		}
 
 		matched++
 		log.Printf("[CRON] Event matched for notification: ID=%d, Title=%s, TargetDate=%s, DaysUntil=%d, Recurring=%v",
